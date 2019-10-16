@@ -1,0 +1,8 @@
+#ignore folders
+Data/
+Figures/
+__pycache__/
+.vscode/
+.spyproject/
+*.ipynb
+
