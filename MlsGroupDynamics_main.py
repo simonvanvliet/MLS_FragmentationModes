@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import time
 from numba import jit, void, f8, i8
-#from numba.types import UniTuple, Tuple
+from numba.types import UniTuple, Tuple
 
 
 
@@ -94,7 +94,7 @@ def sample_model(groupMatrix, output, sample_idx, currT):
 
 
 """============================================================================
-Sub functions of model code
+Sub functions individual dynamics 
 ============================================================================"""
 
 #calculate birth and death rate for all groups and types
@@ -135,16 +135,16 @@ def process_indv_event(groupMat, rateVector, mutationR, rand):
     eventID = util.select_random_event(rateVector, rand[0])
     
     #get event type
-    eventType = math.floor(eventID/numGroup)
+    eventtRype = math.floor(eventID/numGroup)
     #get event group
     eventGroup = eventID % numGroup # % is modulo operator
     
     #track if any groups die in process
     groupDeathID = -1 #-1 is no death 
 
-    if eventType < 4: #birth event 
+    if eventtRype < 4: #birth event 
         #add cell to group, check for mutations first
-        cellType = eventType
+        cellType = eventtRype
         if (cellType % 2)==0: #Wild type cell, can mutate
             if rand[1] < mutationR: #birth with mutation
                 groupMat[cellType+1, eventGroup] += 1
@@ -154,7 +154,7 @@ def process_indv_event(groupMat, rateVector, mutationR, rand):
             groupMat[cellType, eventGroup] += 1
     else: #death event
         #remove cell from group
-        cellType = eventType - 4
+        cellType = eventtRype - 4
         groupMat[cellType, eventGroup] -= 1
         
         #kill group if last cell died
@@ -168,8 +168,13 @@ def process_indv_event(groupMat, rateVector, mutationR, rand):
     return groupDeathID
 
 
-#remove empty group from group matrix
-def remove_empty_group(groupMat, groupDeathID):
+"""============================================================================
+Sub functions group dynamics 
+============================================================================"""
+
+#remove group from group matrix
+@jit(Tuple((f8[:, :], i8))(f8[:, :], i8), nopython=True)
+def remove_group(groupMat, groupDeathID):
     #Note: groupMat is re-created, it has to be returned
     #create helper vector
     numGroup = groupMat.shape[1]
@@ -179,66 +184,191 @@ def remove_empty_group(groupMat, groupDeathID):
     #copy remaining groups to new matrix
     groupMat = groupMat[:,hasDied==0]
     
-    return groupMat
+    numGroup -= 1 
+    
+    return (groupMat, numGroup)
 
+
+#calculate fission and extinction ratea  of all groups
+@jit(f8[::1](f8[:, :], f8, f8, f8, f8[::1], f8[::1]), nopython=True)
+def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVec4, oneVecGroup):
+    #calc total number of individuals per group, use matrix product for speed
+    Ntot_group = oneVec4 @ groupMat
+    
+    #calc total number of individuals
+    Ntot = oneVecGroup @ Ntot_group
+    
+    #calc fission rate
+    if group_Sfission>0:
+        fissionR = oneVecGroup + group_Sfission * Ntot_group
+    else:
+        fissionR = oneVecGroup
+    
+    #calc extinction rate
+    groupDeathRate = Ntot / group_K
+    if group_Sextinct>0:
+        extinctR = (oneVecGroup + group_Sextinct * Ntot_group) * groupDeathRate 
+    else:
+        extinctR = oneVecGroup * groupDeathRate 
+    
+    #combine all rates in single vector
+    rates = np.concatenate((fissionR, extinctR))
+
+    return rates 
+
+
+#process individual level events
+@jit(Tuple((f8[:, :], i8))(f8[:, :], f8[::1], f8[::1]), nopython=True)
+def process_group_event(groupMat, groupRates, rand):
+    #get number of groups
+    numGroup = groupMat.shape[1]
+    
+    #select random event based on propensity
+    eventID = util.select_random_event(groupRates, rand[0])
+    
+    #get event type
+    eventtRype = math.floor(eventID/numGroup)
+    #get event group
+    eventGroup = eventID % numGroup # % is modulo operator
+    
+
+    if eventtRype < 1: 
+        #fission event - add new group and split cells
+        #get parent composition
+        parOld = groupMat[:,eventGroup]
+        
+        #calc daughter composition
+        daughter = np.floor(parOld / 2)
+        parNew = parOld - daughter
+        
+        #only add daughter if not empty
+        if daughter.sum() > 0:
+            #update parrent
+            groupMat[:,eventGroup] = parNew
+            #add new daughter group
+            groupMat = np.column_stack((groupMat, daughter))
+        
+        numGroup = groupMat.shape[1]
+        
+    else:
+        #extinction event - remove group
+        groupMat, numGroup = remove_group(groupMat, eventGroup)
+            
+    return (groupMat, numGroup)
+
+
+
+#create helper vectors for dot products
+def create_helper_vector(NGroup):
+    oneVecGroup = np.ones(NGroup)
+    oneVecIndvR = np.ones(NGroup * 8)
+    oneVecGrR = np.ones(NGroup * 2)
+    return(oneVecGroup, oneVecIndvR, oneVecGrR)
 
 """============================================================================
 Main model code
 ============================================================================"""
 
-#main model code
+#main model 
 def run_model(model_par):
-    #helper vector to calc sum over all cell types
-    oneVec4 = np.array([1.,1.,1.,1.])
-
+    
     ## Initialize model, get rates and init matrices
     #number of steps to run
     sampleInt = model_par['sampleInt']
-    numTStep = int(model_par['numTimeStep'])
-    numTSample = int(np.ceil(numTStep / sampleInt)+1)
+    maxT = model_par['maxT']
+    numTSample = int(np.ceil(maxT / sampleInt)+1)
     
     #initialize group matrix
     groupMat = init_groupMat(model_par)
     
     #get matrix with random numbers
-    randMat = util.create_randMat(numTStep, 2)
+    #creates matrix with maxRandMatSize entries, it is recreated if needed
+    maxRandMatSize = int(1E6)
+    randMat = util.create_randMat(maxRandMatSize, 4)
     
     #initialize output matrix
     output = init_output_matrix(numTSample)
     
-    # get individual rates
+    #helper vector to calc sum over all cell types
+    oneVec4 = np.array([1.,1.,1.,1.])
+    
+    #helper vector to calc sum over all groups
+    numGroup = groupMat.shape[1]
+    oneVecGroup, oneVecIndvR, oneVecGrR = create_helper_vector(numGroup)
+    
+    # get model rates
     indv_deathR, indv_cost, indv_mutationR = [float(model_par[x])
                             for x in ('indv_deathR', 'indv_cost', 'indv_mutationR')]
     
-    # first sample
-    currT = 0
-    sampleIdx = 0
-    sampleIdx = sample_model(groupMat, output, sampleIdx, currT)
+    gr_Sfission, gr_Sextinct, gr_K, gr_tau = [float(model_par[x])
+                            for x in ('gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau')]
     
+    # init counters 
+    currT = 0
+    ttR = 0
+    sampleIdx = 0
+    
+    #get first sample of init state
+    sampleIdx = sample_model(groupMat, output, sampleIdx, currT)
+        
     ## loop time steps
-    for tt in range(numTStep):
+    while currT <= maxT:
+        
+        # reset rand matrix when used up
+        if ttR >= maxRandMatSize:
+            randMat = util.create_randMat(maxRandMatSize, 4)
+            ttR = 0            
+            
         #calc rates of individual level events
-        indvRates = calc_indv_rates(groupMat, indv_cost, indv_deathR, oneVec4)
+        indvRates = calc_indv_rates(groupMat, 
+                                    indv_cost, indv_deathR, oneVec4)
+        
+        #calc rates of group events
+        groupRates = calc_group_rates(groupMat, 
+                                      gr_Sfission, gr_Sextinct, gr_K, oneVec4, oneVecGroup)
+        
+        #calculate total propensities
+        indvProp = oneVecIndvR @ indvRates
+        groupProp = (oneVecGrR @ groupRates) / gr_tau
+        totProp = indvProp + groupProp
         
         #calc time step
-        dt = 1
+        dt = -1 * math.log(randMat[ttR,1]) / totProp
         
-        #select and process individual level event
-        groupDeathID = process_indv_event(groupMat, indvRates, indv_mutationR, randMat[tt,:])
-        if groupDeathID > -1: #group has died, remove it
-            groupMat = remove_empty_group(groupMat, groupDeathID)
-            numGroup = groupMat.shape[1]
-            if numGroup==0: #all groups have died, end simulation
-                break
+        #select group or individual event
+        rescaledRand = randMat[ttR,0] * totProp
+        if  rescaledRand < indvProp: 
+            #individual level event - select and process individual level event
+            groupDeathID = process_indv_event(groupMat, indvRates, indv_mutationR, randMat[ttR,2:3])
+            
+            #check if group has died
+            if groupDeathID > -1: 
+                #remove empty group
+                groupMat, numGroup = remove_group(groupMat, groupDeathID)
+                
+                #if all groups have died, end simulation
+                if numGroup == 0: break
+
+                # recreate helper vector
+                oneVecGroup, oneVecIndvR, oneVecGrR = create_helper_vector(numGroup) 
+   
+        else: 
+            #group level event - select and process group level event
+            groupMat, numGroup = process_group_event(groupMat, groupRates, randMat[ttR,2:3])
+            
+            #if all groups have died, end simulation
+            if numGroup == 0: break
+        
+            # recreate helper vector
+            oneVecGroup, oneVecIndvR, oneVecGrR = create_helper_vector(numGroup) 
             
         # update time
         currT += dt
+        ttR += 1
         # sample model at intervals
         nextSampleT = sampleInt * sampleIdx
         if currT >= nextSampleT:
             sampleIdx = sample_model(groupMat, output, sampleIdx, currT)         
-
-    print(groupMat)
     
     return output 
 
@@ -259,8 +389,8 @@ def plot_data(dataStruc, FieldName, type='lin'):
     
     #set x-label
     plt.xlabel("time")
-    maxTData = np.nanmax(dataStruc['time'])
-    plt.xlim((0, maxTData))
+    #maxTData = np.nanmax(dataStruc['time'])
+    #plt.xlim((0, maxTData))
    
         
     return None
@@ -276,7 +406,7 @@ def single_run_with_plot(model_par):
     #print timing
     print("Elapsed time run 1 = %s" % (end - start))
 
-    #setp figure formatting
+    #setp figure formattRing
     font = {'family': 'arial',
             'weight': 'normal',
             'size': 6}
@@ -312,17 +442,22 @@ def single_run_with_plot(model_par):
 # run model with default parameters
 def run_w_def_parameter():
     model_par = {
-        # solver settings
-        "numTimeStep":      1E6,
-        "sampleInt":        10,
-        # settings for intial condition
-        "init_groupNum":    10,
-        "init_groupComp":   [0.5, 0, 0.5, 0],
-        "init_groupDens":   50,
-        # settings for individual level dynamics
-        "indv_cost":        0.1,
-        "indv_deathR":      0.001,
-        "indv_mutationR":   1E-1
+        # solver settRings
+        "maxT":             500,                #total run time
+        "sampleInt":        1,                  #sampling interval
+        # settRings for intial condition
+        "init_groupNum":    10,                 #initial # groups
+        "init_groupComp":   [0.5, 0, 0.5, 0],   #initial composition of groups (fractions)
+        "init_groupDens":   50,                 #initial total cell number in group
+        # settRings for individual level dynamics
+        "indv_cost":        0.1,                #cost of cooperation
+        "indv_deathR":      0.01,               #death rate individuals
+        "indv_mutationR":   1E-2,               #mutation rate to cheaters
+        # settRing for group rates
+        'gr_Sfission':      0.,                 #fission rate = (1 + gr_Sfission * N)/gr_tau
+        'gr_Sextinct':      0.,                 #extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
+        'gr_K':             2E3,                #total carrying capacity of cells
+        'gr_tau':           10                  #relative rate individual and group events
     }
 
     single_run_with_plot(model_par)
