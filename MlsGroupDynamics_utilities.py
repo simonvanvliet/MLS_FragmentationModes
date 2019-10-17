@@ -33,7 +33,7 @@ ndtri_fn = functype(addr)
 
 
 # %%random sample based on propensity
-@jit(i8(f8[::1], f8), nopython=True)
+@jit(i8(f8[:], f8), nopython=True)
 def select_random_event(propensity_vec, randNum):
     # calculate cumulative propensities
     cumPropensity = propensity_vec.cumsum()
@@ -48,6 +48,7 @@ def select_random_event(propensity_vec, randNum):
 
 
 # %%create matrix with random numbers, excluding 0 and 1
+@jit(f8[:, :](i8, i8), nopython=True)
 def create_randMat(num_t, num_rand):
     notDone = True
     while notDone:
