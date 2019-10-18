@@ -403,6 +403,11 @@ def run_model(model_par):
     rmsInt = int(
         math.ceil(model_par['rms_window'] / model_par['sampleInt']))
 
+    if 'minT' in model_par:
+        minTRun = max(model_par['minT'], rmsInt+1)
+    else:
+        minTRun = rmsInt + 1
+        
     # initialize group matrix
     groupMat = init_groupMat(model_par)
 
@@ -505,7 +510,15 @@ def run_model(model_par):
         if currT >= nextSampleT:
             sampleIdx = sample_model(groupMat, output, distFCoop, binFCoop,
                                      distGrSize, binGrSize, sampleIdx, currT, mavInt, rmsInt)
+            # check if steady state has been reached
+            if currT > minTRun:
+                if output['rms_err'][sampleIdx - 1] < model_par['rms_err_treshold']: break
 
+    # cut off non existing time points at end
+    output = output[0:sampleIdx]
+    distFCoop = distFCoop[0:sampleIdx, :]
+    distGrSize = distGrSize[0:sampleIdx, :]
+    
     return (output, distFCoop, distGrSize)
 
 
@@ -515,7 +528,6 @@ Code that calls model and plots results
 
 # code to plot data
 # set type to "lin" or "log" to switch between lin or log plot
-
 
 def plot_data(dataStruc, FieldName, type='lin'):
     # linear plot
@@ -631,10 +643,12 @@ def single_run_with_plot(model_par):
 def run_w_def_parameter():
     model_par = {
         # solver settings
-        "maxT":             500,  # total run time
+        "maxT": 500,  # total run time
+        "minT":             250,  # min run time
         "sampleInt":        1,    # sampling interval
         "mav_window":       100,   # average over this time window
-        "rms_window":       200,  # calc rms change over this time window
+        "rms_window": 200,          # calc rms change over this time window
+        "rms_err_treshold": 1E-5,   #when to stop calculations
         # settings for initial condition
         "init_groupNum":    100,  # initial # groups
         # initial composition of groups (fractions)
@@ -659,6 +673,39 @@ def run_w_def_parameter():
     single_run_with_plot(model_par)
 
     return None
+
+#run model store only final state 
+def single_run_finalstate(model_par):
+    # run model
+    output, distFCoop, distGrSize = run_model(model_par)
+
+    #output variables to store
+    varList = ['NGroup', 'NA', 'NAprime', 'NB', 'NBprime',
+           'fCoop', 'fCoop_mav']
+
+    #input parameters to store
+    parList = ['indv_cost', 'indv_deathR', 'indv_mutationR',
+               'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
+               'offspr_size', 'offspr_frac']
+
+    #all output fields combined
+    allOutputVar = varList + parList
+    # init output matrix
+    dTypeList = [(x, 'f8') for x in allOutputVar]
+    dType = np.dtype(dTypeList)
+    output_matrix = np.zeros(1, dType)
+
+    # store final state
+    for var in varList:
+        output_matrix[var] = output[var][-1]
+
+    for par in parList:
+        output_matrix[par] = model_par[par]
+
+    endDistFCoop = distFCoop[-1,:]
+    endDistGrSize = distGrSize[-1, :]
+
+    return (output_matrix, endDistFCoop, endDistGrSize)
 
 
 # this piece of code is run only when this script is executed as the main
