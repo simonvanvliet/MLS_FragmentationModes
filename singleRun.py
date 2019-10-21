@@ -21,7 +21,7 @@ import MlsGroupDynamics_main as mls
 #set model parameters
 model_par = {
     # solver settings
-    "maxT": 500,  # total run time
+    "maxT": 1000,  # total run time
     "minT":             250,  # min run time
     "sampleInt":        1,    # sampling interval
     "mav_window":       100,   # average over this time window

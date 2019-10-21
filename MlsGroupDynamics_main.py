@@ -42,8 +42,8 @@ def init_output_matrix(model_par):
                       ('NAprime', 'f8'),
                       ('NB', 'f8'),
                       ('NBprime', 'f8'),
-                      ('fCoop', 'f8'),
-                      ('fCoop_mav', 'f8'),
+                      ('NCoop', 'f8'),
+                      ('NCoop_mav', 'f8'),
                       ('rms_err', 'f8'),
                       ('time', 'f8')])
 
@@ -52,12 +52,12 @@ def init_output_matrix(model_par):
     output['time'][0] = 0
 
     # init matrix to track distribution fraction of cooperators 
-    nBinFCoop = 50
+    nBinFCoop = 20
     binFCoop = np.linspace(0, 1, nBinFCoop)
     distFCoop = np.full((numTSample, nBinFCoop-1), np.nan)
 
     # init matrix to track distribution fraction of cooperators
-    nBinGrSize = 50
+    nBinGrSize = 20
     nMax = 1 / (2 * model_par['indv_deathR']) #expected EQ. group size if all cooperator
     binGrSize = np.linspace(0, nMax, nBinGrSize)
     distGrSize = np.full((numTSample, nBinGrSize-1), np.nan)
@@ -130,18 +130,18 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     output['NAprime'][sample_idx] = Ntot_type[1]
     output['NB'][sample_idx] = Ntot_type[2]
     output['NBprime'][sample_idx] = Ntot_type[3]
-    output['fCoop'][sample_idx] = fCoop
+    output['NCoop'][sample_idx] = Ntot_type[0] + Ntot_type[2]
 
     #calc moving average 
     if sample_idx >= 1:
         mav, _ = util.calc_moving_av(
-            output['fCoop'], sample_idx, mavInt)
-        output['fCoop_mav'][sample_idx] = mav
+            output['NCoop'], sample_idx, mavInt)
+        output['NCoop_mav'][sample_idx] = mav
 
     # calc rms error
     if sample_idx >= rmsInt:
         output['rms_err'][sample_idx] = util.calc_rms_error(
-            output['fCoop'], sample_idx, rmsInt)
+            output['NCoop_mav'], sample_idx, rmsInt) / output['NCoop_mav'][sample_idx]
 
     # calc distribution groupsizes
     distGrSize[sample_idx, :] = calc_distri(Ntot_group, binGrSize)
@@ -152,6 +152,34 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     sample_idx += 1
     return sample_idx
 
+
+# sample model
+def sample_extinction(output, distFCoop, binFCoop,
+                 distGrSize, sample_idx, currT):
+    # store time
+    output['time'][sample_idx] = currT
+
+    # calc number of groups
+    output['NGroup'][sample_idx] = 0
+
+    # calc total population sizes
+    output['NA'][sample_idx] = 0
+    output['NAprime'][sample_idx] = 0
+    output['NB'][sample_idx] = 0
+    output['NBprime'][sample_idx] = 0
+    output['NCoop'][sample_idx] = 0
+    output['NCoop_mav'][sample_idx] = 0
+    output['rms_err'][sample_idx] = 0
+
+    # calc distribution groupsizes
+    distGrSize[sample_idx, :] = 0
+
+    # calc distribution fraction cooperator
+    distFCoop[sample_idx,:] = 0
+    
+    sample_idx += 1
+
+    return sample_idx
 
 """============================================================================
 Sub functions individual dynamics 
@@ -483,6 +511,8 @@ def run_model(model_par):
 
                 # if all groups have died, end simulation
                 if numGroup == 0:
+                    sampleIdx = sample_extinction(output, distFCoop, binFCoop,
+                                      distGrSize, sampleIdx, currT)
                     break
 
                 # recreate helper vector
@@ -496,6 +526,8 @@ def run_model(model_par):
 
             # if all groups have died, end simulation
             if numGroup == 0:
+                sampleIdx = sample_extinction(output, distFCoop, binFCoop,
+                                  distGrSize, sampleIdx, currT)
                 break
 
             # recreate helper vector
@@ -518,6 +550,9 @@ def run_model(model_par):
     output = output[0:sampleIdx]
     distFCoop = distFCoop[0:sampleIdx, :]
     distGrSize = distGrSize[0:sampleIdx, :]
+    
+    if output['NCoop'][-1] == 0:
+        output['NCoop_mav'][-1] = 0
     
     return (output, distFCoop, distGrSize)
 
@@ -613,16 +648,15 @@ def single_run_with_plot(model_par):
 
     # plot fraction of coop
     plt.subplot(nR, nC, 3)
-    plot_data(output, "fCoop")
-    plot_data(output, "fCoop_mav")
-    plt.ylabel("fraction cooperator")
-    plt.ylim((0, 1))
+    plot_data(output, "NCoop")
+    plot_data(output, "NCoop_mav")
+    plt.ylabel("density cooperator")
     plt.legend()
 
     # plot rms error
     plt.subplot(nR, nC, 4)
-    plot_data(output, "rms_err")
-    plt.ylabel("rms error fCoop_mav")
+    plot_data(output, "rms_err",type='log')
+    plt.ylabel("rms error NCoop_mav")
 
     #plot distribution group size
     axs = plt.subplot(nR, nC, 5)
@@ -643,21 +677,21 @@ def single_run_with_plot(model_par):
 def run_w_def_parameter():
     model_par = {
         # solver settings
-        "maxT": 500,  # total run time
+        "maxT": 1000,  # total run time
         "minT":             250,  # min run time
         "sampleInt":        1,    # sampling interval
         "mav_window":       100,   # average over this time window
-        "rms_window": 200,          # calc rms change over this time window
-        "rms_err_treshold": 1E-5,   #when to stop calculations
+        "rms_window": 100,          # calc rms change over this time window
+        "rms_err_treshold": 2E-2,   #when to stop calculations
         # settings for initial condition
         "init_groupNum":    100,  # initial # groups
         # initial composition of groups (fractions)
         "init_groupComp":   [0.5, 0, 0.5, 0],
         "init_groupDens":   100,  # initial total cell number in group
         # settings for individual level dynamics
-        "indv_cost":        0.1,  # cost of cooperation
-        "indv_deathR":      0.01,  # death rate individuals
-        "indv_mutationR":   1E-2,  # mutation rate to cheaters
+        "indv_cost":        0.05,  # cost of cooperation
+        "indv_deathR":      0.001,  # death rate individuals
+        "indv_mutationR":   1E-3,  # mutation rate to cheaters
         # setting for group rates
         'gr_Sfission':      0.,  # fission rate = (1 + gr_Sfission * N)/gr_tau
         # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
@@ -665,7 +699,7 @@ def run_w_def_parameter():
         'gr_K':             1E4,  # total carrying capacity of cells
         'gr_tau': 100,  # relative rate individual and group events
         # settings for fissioning
-        'offspr_size':      0.5,   #offspr_size <= 0.5 and 
+        'offspr_size':      0.01,   #offspr_size <= 0.5 and 
         'offspr_frac':      0.5    #offspr_size < offspr_frac < 1-offspr_size'
 
     }
@@ -681,7 +715,7 @@ def single_run_finalstate(model_par):
 
     #output variables to store
     varList = ['NGroup', 'NA', 'NAprime', 'NB', 'NBprime',
-           'fCoop', 'fCoop_mav']
+           'NCoop', 'NCoop_mav']
 
     #input parameters to store
     parList = ['indv_cost', 'indv_deathR', 'indv_mutationR',
