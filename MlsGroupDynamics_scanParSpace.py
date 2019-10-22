@@ -30,12 +30,13 @@ import math
 Define parameters
 ============================================================================"""
 
-override_data = False #set to true to force re-calculation
+override_data = True #set to true to force re-calculation
+numCore = 2 #number of cores to run code on
 
 #where to store output?
 data_folder = Path("Data/")
 fig_Folder = Path("Figures/")
-mainName = 'scanFissionModes'
+mainName = 'scanFissionModes_noInt'
 
 #setup variables to scan
 numX = 16
@@ -46,8 +47,8 @@ offspr_fracVec = np.linspace(0, 1, numX)
 #set other parameters
 model_par = {
     # solver settings
-    "maxT":             1500,  # total run time
-    "minT":             250,   # min run time
+    "maxT":             2500,  # total run time
+    "minT":             500,   # min run time
     "sampleInt":        1,     # sampling interval
     "mav_window":       100,   # average over this time window
     "rms_window":       100,   # calc rms change over this time window
@@ -61,6 +62,7 @@ model_par = {
     "indv_cost":        0.05,  # cost of cooperation
     "indv_deathR":      0.001, # death rate individuals
     "indv_mutationR":   1E-2,  # mutation rate to cheaters
+    "indv_interact":    0,      #0 1 to turn off/on crossfeeding
     # setting for group rates
     'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
     'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
@@ -73,8 +75,9 @@ model_par = {
 }
 
 #setup name to save files
-parName = '_cost%.0e_mu%.0e_tau%i' % (
-    model_par['indv_cost'], model_par['indv_mutationR'], model_par['gr_tau'])
+parName = '_cost%.0e_mu%.0e_tau%i_interaction%i' % (
+    model_par['indv_cost'], model_par['indv_mutationR'], 
+    model_par['gr_tau'], model_par['indv_interact'])
 dataFileName = mainName + parName + '.npz'
 dataFilePath = data_folder / dataFileName
 figureName = mainName + parName + '.pdf'
@@ -102,7 +105,7 @@ def run_model():
                 modelParList.append(set_fission_mode(offspr_size, offspr_frac))
 
     # run model, use parallel cores 
-    nJobs = min(len(modelParList), 4)
+    nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(mls.single_run_finalstate)(par) for par in modelParList)
@@ -121,7 +124,7 @@ def run_model():
     return statData
 
 
-# checks of model parmaters have changed compared to file saved on disk
+# checks if model parmaters have changed compared to file saved on disk
 def check_model_par(model_par_load, parToIgnore):
     rerun = False
     for key in model_par_load:
@@ -155,7 +158,6 @@ def load_or_run_model():
 
 #convert list of results to 2D matrix of offspring frac. size vs fraction of parent to offspring
 def create_2d_matrix(offspr_sizeVec, offspr_fracVec, statData, fieldName):
-
     #get size of matrix
     numX = offspr_sizeVec.size
     numY = offspr_fracVec.size
@@ -171,7 +173,15 @@ def create_2d_matrix(offspr_sizeVec, offspr_fracVec, statData, fieldName):
             currId = np.logical_and(currXId, currYId)
             #extract output value and assign to matrix
             if currId.sum() == 1:
-                dataMatrix[yy, xx] = np.asscalar(statData[fieldName][currId])
+                if fieldName == 'fCoop':
+                    NCoop = np.asscalar(statData['NCoop'][currId]) 
+                    NTot = np.asscalar(statData['NCoop'][currId] 
+                        + statData['NAprime'][currId] 
+                        + statData['NBprime'][currId])
+                    if NTot>0:
+                        dataMatrix[yy, xx] = NCoop / NTot
+                else:
+                    dataMatrix[yy, xx] = np.asscalar(statData[fieldName][currId])
     return dataMatrix
 
 
@@ -213,19 +223,24 @@ def plot_heatmap(fig, ax, statData, dataName, rounTo):
 def make_figure(statData):
     #open figure and set size
     fig = plt.figure()
-    util.set_fig_size_cm(fig, 10, 10)
+    util.set_fig_size_cm(fig, 15, 10)
 
     #plot variables
     nR = 1
-    nC = 2
+    nC = 3
     
     #plot average Cooperator density
     ax = plt.subplot(nR, nC, 1)
-    plot_heatmap(fig, ax, statData, 'NCoop_mav', 500)
+    plot_heatmap(fig, ax, statData, 'NCoop_mav', 5000)
 
     #plot number of groups
     ax = plt.subplot(nR, nC, 2)
-    plot_heatmap(fig, ax, statData, 'NGroup', 5)
+    plot_heatmap(fig, ax, statData, 'NGroup', 100)
+    
+    
+    #plot number of groups
+    ax = plt.subplot(nR, nC, 3)
+    plot_heatmap(fig, ax, statData, 'fCoop', 1)
     
     #clean up figure
     plt.tight_layout() 

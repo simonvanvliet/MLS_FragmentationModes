@@ -71,6 +71,10 @@ def init_groupMat(model_par):
     numGroup = int(model_par["init_groupNum"])
     # convert list of initComp to numpy column vector
     init_groupComp = np.c_[model_par["init_groupComp"]]
+    
+    if model_par['indv_interact']==0:
+        init_groupComp[2:3] = 0
+    
     # multiply with density and round to get cell numbers
     init_groupComp = np.round(init_groupComp * model_par["init_groupDens"])
     # init all groups with same composition
@@ -188,22 +192,38 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(f8[::1](f8[:, :], f8, f8, f8[::1]), nopython=True)
-def calc_indv_rates(groupMat, cost, deathR, oneVec4):
+@jit(f8[::1](f8[:, :], f8, f8, i8, f8[::1], f8[::1]), nopython=True)
+def calc_indv_rates(groupMat, cost, deathR, indv_interact, oneVec4, oneVecGroup):
     # calc total number of individuals per group, use matrix product for speed
     Ntot = oneVec4 @ groupMat
 
-    # calc birth rates per type and group
-    birthA = (1-cost) * groupMat[2, :] * groupMat[0, :] / Ntot
-    birthAp = groupMat[2, :] * groupMat[1, :] / Ntot
-    birthB = (1-cost) * groupMat[0, :] * groupMat[2, :] / Ntot
-    birthBp = groupMat[0, :] * groupMat[3, :] / Ntot
+    if indv_interact == 1:
+        # calc birth rates per type and group
+        birthA  = (1-cost) * groupMat[2, :] * groupMat[0, :] / Ntot
+        birthAp = groupMat[2, :] * groupMat[1, :] / Ntot
+        birthB  = (1-cost) * groupMat[0, :] * groupMat[2, :] / Ntot
+        birthBp = groupMat[0, :] * groupMat[3, :] / Ntot
+        
+        # calc death rates per type and group
+        deathA  = deathR * groupMat[0, :] * Ntot
+        deathAp = deathR * groupMat[1, :] * Ntot
+        deathB  = deathR * groupMat[2, :] * Ntot
+        deathBp = deathR * groupMat[3, :] * Ntot
+        
+    elif indv_interact == 0:
+        zeroVec = 0 * oneVecGroup
 
-    # calc death rates per type and group
-    deathA = deathR * groupMat[0, :] * Ntot
-    deathAp = deathR * groupMat[1, :] * Ntot
-    deathB = deathR * groupMat[2, :] * Ntot
-    deathBp = deathR * groupMat[3, :] * Ntot
+        # calc birth rates per type and group
+        birthA  = (1-cost) * groupMat[0, :] * groupMat[0, :] / Ntot
+        birthAp = groupMat[0, :] * groupMat[1, :] / Ntot
+        birthB  = zeroVec
+        birthBp = zeroVec  
+        
+        # calc death rates per type and group
+        deathA  = deathR * groupMat[0, :] * Ntot
+        deathAp = deathR * groupMat[1, :] * Ntot
+        deathB  = zeroVec
+        deathBp = zeroVec
 
     # combine all rates in single vector
     rates = np.concatenate((birthA, birthAp, birthB, birthBp,
@@ -296,6 +316,7 @@ def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVec4,
     groupDeathRate = Ntot / group_K
     if group_Sextinct > 0:
         extinctR = (oneVecGroup + group_Sextinct * Ntot_group) * groupDeathRate
+        extinctR[extinctR < 0] = 0
     else:
         extinctR = oneVecGroup * groupDeathRate
 
@@ -306,63 +327,51 @@ def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVec4,
 
 
 @jit(Tuple((f8[:],f8[:,:]))(f8[:], f8, f8), nopython=True)
-def fission_groups(parentGroup, offspr_size, offspr_frac):
-    if offspr_size > 0.5: 
-        print('cannot do that: offspr_size < 0.5 and offspr_size < offspr_frac < 1')
-        raise ValueError
-    elif offspr_frac < offspr_size or offspr_frac > (1-offspr_size):
-        print('cannot do that: offspr_frac should be offspr_size < offspr_frac < 1-offspr_size')
-        raise ValueError
+def fission_groups(parentGroup, offspr_size, offspr_frac):        
+    #number of cells in parents
+    cellNumPar = parentGroup.sum()
+   
+    #calc number of offspring, draw from Poisson distribution
+    # <#offspring> = numCellsToOffspr / sizeOfOffspr
+    # = offspr_frac * cellNumPar / offspr_size * cellNumPar
+    # = offspr_frac / offspr_size
+    expectedNumOffSpr = offspr_frac / offspr_size
+    numOffSpr = int(np.random.poisson(expectedNumOffSpr))
+    #calc total number of cells passed on to offspring, keep at least 1 cell in parent
+    numCellsToOffspr = int(min(round(offspr_frac * cellNumPar), cellNumPar-1))
+
+    #assign cells to offspring
+    if numOffSpr > 0:
+        parrentPool = parentGroup
+        #init offspring array
+        offspring = np.zeros((4, numOffSpr))
+
+        #perform random sampling
+        randMat = util.create_randMat(numCellsToOffspr, 1)
+
+        for ii in range(numCellsToOffspr):
+            #randomly pick cell from parent using weighted lottery
+            typePicked = util.select_random_event(parrentPool, randMat[ii, 0])
+            #deal round the table: select offsping to assign cell to
+            offspringPicked = ii % numOffSpr 
+            #assign cell to offspring
+            offspring[typePicked, offspringPicked] += 1
+            #remove cell from parent
+            parrentPool[typePicked] -= 1
+        
+        #remove empty daughter groups
+        numCellInOffspr = offspring.sum(0)
+        offspring = offspring[:, numCellInOffspr > 0]
+
+        #update parent to new state
+        parrentNew = parrentPool
     else:
-        cellNumPar = parentGroup.sum()
-        #number of cells in each offspring
-        cellNumOff = int(round(offspr_size * cellNumPar))
-        if cellNumOff > 0:
-            #calc expected number of cells going to offspring
-            expectedCellsToOffspr = round(offspr_frac * cellNumPar)
-            #calc number of offspring
-            numOffSpr = int(round(expectedCellsToOffspr / cellNumOff))
-        else:
-            numOffSpr = 0
-
-        if numOffSpr > 0:
-            parrentPool = parentGroup
-            #calc number of cells to offspring
-            numCellsToOffspr = int(numOffSpr * cellNumOff)
-
-            if numCellsToOffspr >= cellNumPar:
-                print('cannot do that: numCellsToOffspr should be < cellNumPar')
-                raise ValueError
-
-            #init offspring array
-            offspring = np.zeros((4, numOffSpr))
-
-            #perform random sampling
-            randMat = util.create_randMat(numCellsToOffspr, 2)
-
-            for ii in range(numCellsToOffspr):
-                #randomly pick cell from parent using weighted lottery
-                typePicked = util.select_random_event(parrentPool, randMat[ii, 0])
-                #deterministically select offsping to assign cell to
-                offspringPicked = ii % numOffSpr #deal round the table
-                #randomly select offsping to assign cell to
-                #offspringPicked = math.floor(randMat[ii, 1] * numOffSpr)
-                #assign cell to offspring
-                offspring[typePicked, offspringPicked] += 1
-                #remove cell from parent
-                parrentPool[typePicked] -= 1
+        #nothing happens
+        parrentNew = parentGroup
+        offspring = np.zeros((4,1))
             
-            #remove empty daughter groups
-            numCellInOffspr = offspring.sum(0)
-            offspring = offspring[:, numCellInOffspr>0]
-
-            #update parent to new state
-            parrentNew = parrentPool
-        else:
-            #nothing happens
-            parrentNew = parentGroup
-            offspring = np.zeros((4,1))
     return (parrentNew, offspring)
+
 
 # process individual level events
 @jit(Tuple((f8[:, :], i8))(f8[:, :], f8[::1], f8[::1], f8, f8), nopython=True)
@@ -384,20 +393,17 @@ def process_group_event(groupMat, groupRates, rand, offspr_size, offspr_frac):
         parentGroup = groupMat[:, eventGroup]
 
         #perform fission process
-        parrentNew, offspring = fission_groups(parentGroup, offspr_size, offspr_frac)
+        if offspr_size > 0:
+            parrentNew, offspring = fission_groups(parentGroup, offspr_size, offspr_frac)
 
-        # # calc daughter composition
-        # daughter = np.floor(parOld / 2)
-        # parNew = parOld - daughter
-
-        # only add daughter if not empty
-        if offspring.sum() > 0:
-            # update parrent
-            groupMat[:, eventGroup] = parrentNew
-            # add new daughter group
-            groupMat = np.column_stack((groupMat, offspring))
-
-        numGroup = groupMat.shape[1]
+            # only add daughter if not empty
+            if offspring.sum() > 0:
+                # update parrent
+                groupMat[:, eventGroup] = parrentNew
+                # add new daughter group
+                groupMat = np.column_stack((groupMat, offspring))
+    
+            numGroup = groupMat.shape[1]
 
     else:
         # extinction event - remove group
@@ -458,11 +464,22 @@ def run_model(model_par):
     indv_deathR, indv_cost, indv_mutationR = [float(model_par[x])
                                               for x in ('indv_deathR', 'indv_cost', 'indv_mutationR')]
 
+    indv_interact = int(model_par['indv_interact'])
+
     gr_Sfission, gr_Sextinct, gr_K, gr_tau = [float(model_par[x])
                                               for x in ('gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau')]
 
     offspr_size, offspr_frac = [float(model_par[x])
                                 for x in ('offspr_size', 'offspr_frac')]
+    
+    #check rates
+    if offspr_size > 0.5: 
+        print('cannot do that: offspr_size < 0.5 and offspr_size < offspr_frac < 1')
+        raise ValueError
+    elif offspr_frac < offspr_size or offspr_frac > (1-offspr_size):
+        print('cannot do that: offspr_frac should be offspr_size < offspr_frac < 1-offspr_size')
+        raise ValueError
+        
 
     # init counters
     currT = 0
@@ -483,7 +500,7 @@ def run_model(model_par):
 
         # calc rates of individual level events
         indvRates = calc_indv_rates(groupMat,
-                                    indv_cost, indv_deathR, oneVec4)
+                                    indv_cost, indv_deathR, indv_interact, oneVec4, oneVecGroup)
 
         # calc rates of group events
         groupRates = calc_group_rates(groupMat,
@@ -692,6 +709,7 @@ def run_w_def_parameter():
         "indv_cost":        0.05,  # cost of cooperation
         "indv_deathR":      0.001,  # death rate individuals
         "indv_mutationR":   1E-3,  # mutation rate to cheaters
+        "indv_interact":    1,      #0 1 to turn off/on crossfeeding
         # setting for group rates
         'gr_Sfission':      0.,  # fission rate = (1 + gr_Sfission * N)/gr_tau
         # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
