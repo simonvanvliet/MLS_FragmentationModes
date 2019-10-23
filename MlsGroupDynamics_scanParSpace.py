@@ -17,12 +17,13 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
+import matplotlib.pyplot as plt
+import numpy.lib.recfunctions as rf
 import MlsGroupDynamics_main as mls
 import MlsGroupDynamics_utilities as util
 from pathlib import Path
 import datetime
 from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
 import numpy as np
 import math
 
@@ -30,24 +31,24 @@ import math
 Define parameters
 ============================================================================"""
 
-override_data = True #set to true to force re-calculation
-numCore = 2 #number of cores to run code on
+override_data = False #set to true to force re-calculation
+numCore = 4 #number of cores to run code on
 
 #where to store output?
 data_folder = Path("Data/")
 fig_Folder = Path("Figures/")
-mainName = 'scanFissionModes_noInt'
+mainName = 'scanFissionModes'
 
 #setup variables to scan
-numX = 16
-numY = 16
+numX = 5
+numY = 5
 offspr_sizeVec = np.linspace(0, 0.5, numX) 
 offspr_fracVec = np.linspace(0, 1, numX)
 
 #set other parameters
 model_par = {
     # solver settings
-    "maxT":             2500,  # total run time
+    "maxT":             50,  # total run time
     "minT":             500,   # min run time
     "sampleInt":        1,     # sampling interval
     "mav_window":       100,   # average over this time window
@@ -62,7 +63,7 @@ model_par = {
     "indv_cost":        0.05,  # cost of cooperation
     "indv_deathR":      0.001, # death rate individuals
     "indv_mutationR":   1E-2,  # mutation rate to cheaters
-    "indv_interact":    0,      #0 1 to turn off/on crossfeeding
+    "indv_interact":    1,      #0 1 to turn off/on crossfeeding
     # setting for group rates
     'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
     'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
@@ -121,7 +122,7 @@ def run_model():
              offspr_sizeVec=offspr_sizeVec, offspr_fracVec=offspr_fracVec,
              modelParList=modelParList, date=datetime.datetime.now())
 
-    return statData
+    return (statData, distGrSize)
 
 
 # checks if model parmaters have changed compared to file saved on disk
@@ -173,15 +174,7 @@ def create_2d_matrix(offspr_sizeVec, offspr_fracVec, statData, fieldName):
             currId = np.logical_and(currXId, currYId)
             #extract output value and assign to matrix
             if currId.sum() == 1:
-                if fieldName == 'fCoop':
-                    NCoop = np.asscalar(statData['NCoop'][currId]) 
-                    NTot = np.asscalar(statData['NCoop'][currId] 
-                        + statData['NAprime'][currId] 
-                        + statData['NBprime'][currId])
-                    if NTot>0:
-                        dataMatrix[yy, xx] = NCoop / NTot
-                else:
-                    dataMatrix[yy, xx] = np.asscalar(statData[fieldName][currId])
+                dataMatrix[yy, xx] = np.asscalar(statData[fieldName][currId])
     return dataMatrix
 
 
@@ -226,21 +219,32 @@ def make_figure(statData):
     util.set_fig_size_cm(fig, 15, 10)
 
     #plot variables
-    nR = 1
-    nC = 3
+    nR = 3
+    nC = 2
     
-    #plot average Cooperator density
+    #plot total cell density
     ax = plt.subplot(nR, nC, 1)
+    plot_heatmap(fig, ax, statData, 'NTot_mav', 5000)
+
+    #plot Cooperator density
+    ax = plt.subplot(nR, nC, 2)
     plot_heatmap(fig, ax, statData, 'NCoop_mav', 5000)
 
-    #plot number of groups
-    ax = plt.subplot(nR, nC, 2)
-    plot_heatmap(fig, ax, statData, 'NGroup', 100)
-    
-    
-    #plot number of groups
+    #plot cooperator fraction
     ax = plt.subplot(nR, nC, 3)
-    plot_heatmap(fig, ax, statData, 'fCoop', 1)
+    plot_heatmap(fig, ax, statData, 'fCoop_mav', 1)
+
+    #plot number of groups
+    ax = plt.subplot(nR, nC, 4)
+    plot_heatmap(fig, ax, statData, 'NGroup_mav', 500)
+
+    #plot mean group size
+    ax = plt.subplot(nR, nC, 5)
+    plot_heatmap(fig, ax, statData, 'groupSizeAv_mav', 5)
+
+    #plot median group size
+    ax = plt.subplot(nR, nC, 6)
+    plot_heatmap(fig, ax, statData, 'groupSizeMed_mav', 5)
     
     #clean up figure
     plt.tight_layout() 

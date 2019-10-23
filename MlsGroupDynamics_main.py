@@ -26,9 +26,15 @@ import math
 import numpy as np
 import MlsGroupDynamics_utilities as util
 
+#output variables to store
+stateVar = ['NA', 'NAprime', 'NB', 'NBprime',
+            'NTot', 'NCoop', 'fCoop',
+            'NGroup', 'groupSizeAv', 'groupSizeMed']
+
 """============================================================================
 Init functions 
 ============================================================================"""
+
 
 # initialize output matrix
 def init_output_matrix(model_par):
@@ -36,16 +42,14 @@ def init_output_matrix(model_par):
     maxT = model_par['maxT']
     numTSample = int(np.ceil(maxT / sampleInt) + 1)
     
-    # specify output fields
-    dType = np.dtype([('NGroup', 'f8'),
-                      ('NA', 'f8'),
-                      ('NAprime', 'f8'),
-                      ('NB', 'f8'),
-                      ('NBprime', 'f8'),
-                      ('NCoop', 'f8'),
-                      ('NCoop_mav', 'f8'),
-                      ('rms_err', 'f8'),
-                      ('time', 'f8')])
+    addVar = ['rms_err_NCoop', 'rms_err_NGroup', 'time']
+    
+    # init output matrix
+    dTypeList1 = [(x, 'f8') for x in stateVar]
+    dTypeList2 = [(x+'_mav', 'f8') for x in stateVar]
+    dTypeList3 = [(x, 'f8') for x in addVar]
+    dTypeList = dTypeList1 + dTypeList2 + dTypeList3
+    dType = np.dtype(dTypeList)
 
     # initialize outputs to NaN
     output = np.full(numTSample, np.nan, dType)
@@ -57,10 +61,9 @@ def init_output_matrix(model_par):
     distFCoop = np.full((numTSample, nBinFCoop-1), np.nan)
 
     # init matrix to track distribution fraction of cooperators
-    nBinGrSize = 20
     nMax = 1 / (2 * model_par['indv_deathR']) #expected EQ. group size if all cooperator
-    binGrSize = np.linspace(0, nMax, nBinGrSize)
-    distGrSize = np.full((numTSample, nBinGrSize-1), np.nan)
+    binGrSize = np.arange(0, nMax+1)
+    distGrSize = np.full((numTSample, int(nMax)), np.nan)
 
     return (output, distFCoop, binFCoop, distGrSize, binGrSize)
 
@@ -99,8 +102,8 @@ def calc_distri(dataVec, binEdges):
     return distribution
 
 # calculate average cooperator fraction in total population
-@jit(Tuple((f8, f8[:], f8[:], f8[:]))(f8[:, :]), nopython=True)
-def calc_group_stat(groupMat):
+@jit(Tuple((f8, f8, f8, f8[:], f8[:], f8[:]))(f8[:, :]), nopython=True)
+def calc_cell_stat(groupMat):
     # calc total number of individuals per group, use matrix product for speed
     Ntot_group = groupMat.sum(0)
     # calc total number of cooperators per group
@@ -113,7 +116,12 @@ def calc_group_stat(groupMat):
     # calc total fraction cooperators
     fCoop = (Ntot_type[0] + Ntot_type[2]) / Ntot_type.sum()
 
-    return (fCoop, Ntot_type, fCoop_group, Ntot_group)
+    #calc group statistics
+    groupSizeAv = Ntot_group.mean()
+    groupSizeMed = np.median(Ntot_group)
+
+    return (fCoop, groupSizeAv, groupSizeMed, Ntot_type, fCoop_group, Ntot_group)
+
 
 
 # sample model
@@ -124,28 +132,39 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
 
     # calc number of groups
     NGroup = groupMatrix.shape[1]
-    output['NGroup'][sample_idx] = NGroup
 
     # get group statistics
-    fCoop, Ntot_type, fCoop_group, Ntot_group = calc_group_stat(groupMatrix)
+    fCoop, groupSizeAv, groupSizeMed, Ntot_type, fCoop_group, Ntot_group = calc_cell_stat(
+        groupMatrix)
 
     # calc total population sizes
     output['NA'][sample_idx] = Ntot_type[0]
     output['NAprime'][sample_idx] = Ntot_type[1]
     output['NB'][sample_idx] = Ntot_type[2]
     output['NBprime'][sample_idx] = Ntot_type[3]
+
+    output['NTot'][sample_idx] = Ntot_type.sum()
     output['NCoop'][sample_idx] = Ntot_type[0] + Ntot_type[2]
+    output['fCoop'][sample_idx] = fCoop
+    
+    output['NGroup'][sample_idx] = NGroup
+    output['groupSizeAv'][sample_idx] = groupSizeAv
+    output['groupSizeMed'][sample_idx] = groupSizeMed
 
     #calc moving average 
     if sample_idx >= 1:
-        mav, _ = util.calc_moving_av(
-            output['NCoop'], sample_idx, mavInt)
-        output['NCoop_mav'][sample_idx] = mav
+        for varname in stateVar:
+            outname = varname + '_mav'
+            mav, _ = util.calc_moving_av(
+                output[varname], sample_idx, mavInt)
+            output[outname][sample_idx] = mav
 
     # calc rms error
     if sample_idx >= rmsInt:
-        output['rms_err'][sample_idx] = util.calc_rms_error(
+        output['rms_err_NCoop'][sample_idx] = util.calc_rms_error(
             output['NCoop_mav'], sample_idx, rmsInt) / output['NCoop_mav'][sample_idx]
+        output['rms_err_NGroup'][sample_idx] = util.calc_rms_error(
+            output['NGroup_mav'], sample_idx, rmsInt) / output['NGroup_mav'][sample_idx]
 
     # calc distribution groupsizes
     distGrSize[sample_idx, :] = calc_distri(Ntot_group, binGrSize)
@@ -731,25 +750,25 @@ def single_run_finalstate(model_par):
     # run model
     output, distFCoop, distGrSize = run_model(model_par)
 
-    #output variables to store
-    varList = ['NGroup', 'NA', 'NAprime', 'NB', 'NBprime',
-           'NCoop', 'NCoop_mav']
-
     #input parameters to store
-    parList = ['indv_cost', 'indv_deathR', 'indv_mutationR',
+    parList = ['indv_cost', 'indv_deathR', 'indv_mutationR', 'indv_interact',
                'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
                'offspr_size', 'offspr_frac']
 
-    #all output fields combined
-    allOutputVar = varList + parList
     # init output matrix
-    dTypeList = [(x, 'f8') for x in allOutputVar]
+    dTypeList1 = [(x, 'f8') for x in stateVar]
+    dTypeList2 = [(x+'_mav', 'f8') for x in stateVar]
+    dTypeList3 = [(x, 'f8') for x in parList]
+    dTypeList = dTypeList1 + dTypeList2 + dTypeList3
     dType = np.dtype(dTypeList)
+
     output_matrix = np.zeros(1, dType)
 
     # store final state
-    for var in varList:
+    for var in stateVar:
         output_matrix[var] = output[var][-1]
+        var_mav = var + '_mav'
+        output_matrix[var_mav] = output[var_mav][-1]
 
     for par in parList:
         output_matrix[par] = model_par[par]
