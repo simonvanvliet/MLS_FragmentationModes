@@ -3,7 +3,7 @@
 """
 Created on Tue Oct 21 2019
 
-Last Update Oct 21 2019
+Last Update Oct 22 2019
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -17,15 +17,13 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
-import matplotlib.pyplot as plt
-import numpy.lib.recfunctions as rf
+
 import MlsGroupDynamics_main as mls
-import MlsGroupDynamics_utilities as util
 from pathlib import Path
 import datetime
 from joblib import Parallel, delayed
 import numpy as np
-import math
+import plotParScan
 
 """============================================================================
 Define parameters
@@ -35,21 +33,23 @@ override_data = False #set to true to force re-calculation
 numCore = 4 #number of cores to run code on
 
 #where to store output?
-data_folder = Path("Data/")
-fig_Folder = Path("Figures/")
+
+
+data_folder = Path(str(Path.home())+"/ownCloud/MLS_GroupDynamics_shared/Data/")
+fig_Folder = Path(str(Path.home())+"/ownCloud/MLS_GroupDynamics_shared/Figures/")
 mainName = 'scanFissionModes'
 
 #setup variables to scan
-numX = 5
-numY = 5
+numX = 16
+numY = 16
 offspr_sizeVec = np.linspace(0, 0.5, numX) 
 offspr_fracVec = np.linspace(0, 1, numX)
 
 #set other parameters
 model_par = {
     # solver settings
-    "maxT":             50,  # total run time
-    "minT":             500,   # min run time
+    "maxT":             3000,  # total run time
+    "minT":             400,   # min run time
     "sampleInt":        1,     # sampling interval
     "mav_window":       100,   # average over this time window
     "rms_window":       100,   # calc rms change over this time window
@@ -63,7 +63,7 @@ model_par = {
     "indv_cost":        0.05,  # cost of cooperation
     "indv_deathR":      0.001, # death rate individuals
     "indv_mutationR":   1E-2,  # mutation rate to cheaters
-    "indv_interact":    1,      #0 1 to turn off/on crossfeeding
+    "indv_interact":    0,      #0 1 to turn off/on crossfeeding
     # setting for group rates
     'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
     'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
@@ -76,16 +76,19 @@ model_par = {
 }
 
 #setup name to save files
-parName = '_cost%.0e_mu%.0e_tau%i_interaction%i' % (
+parName = '_cost%.0e_mu%.0e_tau%i_interact%i_dr%.0e_grK%.0e_sFis%.0e_sExt%.0e' % (
     model_par['indv_cost'], model_par['indv_mutationR'], 
-    model_par['gr_tau'], model_par['indv_interact'])
-dataFileName = mainName + parName + '.npz'
-dataFilePath = data_folder / dataFileName
-figureName = mainName + parName + '.pdf'
+    model_par['gr_tau'], model_par['indv_interact'],
+    model_par['indv_deathR'], model_par['gr_K'],
+    model_par['gr_Sfission'], model_par['gr_Sextinct'])
+dataFileName = mainName + parName 
+dataFilePath = data_folder / (dataFileName + '.npz')
+
 
 """============================================================================
 Define functions
 ============================================================================"""
+
 
 #set model parameters for fission mode
 def set_fission_mode(offspr_size, offspr_frac):
@@ -157,107 +160,8 @@ def load_or_run_model():
     return statData
 
 
-#convert list of results to 2D matrix of offspring frac. size vs fraction of parent to offspring
-def create_2d_matrix(offspr_sizeVec, offspr_fracVec, statData, fieldName):
-    #get size of matrix
-    numX = offspr_sizeVec.size
-    numY = offspr_fracVec.size
-    #init matrix to NaN
-    dataMatrix = np.full((numY, numX), np.nan)
-
-    #fill matrix
-    for xx in range(numX):
-        for yy in range(numY):
-            #find items in list that have correct fissioning parameters for current location in matrix
-            currXId = statData['offspr_size'] == offspr_sizeVec[xx]
-            currYId = statData['offspr_frac'] == offspr_fracVec[yy]
-            currId = np.logical_and(currXId, currYId)
-            #extract output value and assign to matrix
-            if currId.sum() == 1:
-                dataMatrix[yy, xx] = np.asscalar(statData[fieldName][currId])
-    return dataMatrix
-
-
-#make heatmap of 2D matrix
-def plot_heatmap(fig, ax, statData, dataName, rounTo):
-    #convert 1D list to 2D matrix
-    data2D = create_2d_matrix(
-        offspr_sizeVec, offspr_fracVec, statData, dataName)
-    
-    #find max value 
-    maxData = math.ceil(np.nanmax(data2D) / rounTo) * rounTo
-    
-    #plot heatmap
-    im = ax.pcolormesh(offspr_sizeVec, offspr_fracVec, data2D,
-                       cmap='plasma', vmin=0, vmax=maxData)
-    #add colorbar
-    fig.colorbar(im, ax=ax, orientation='horizontal',
-                 label=dataName,
-                 ticks=[0, maxData/2, maxData], 
-                 fraction=0.5, pad=0.1)
-
-    #make axis nice
-    xRange = (offspr_sizeVec.min(), offspr_sizeVec.max())
-    yRange = (offspr_fracVec.min(), offspr_fracVec.max())
-    steps = (3, 3)
-    ax.set_xlim(xRange)
-    ax.set_ylim(yRange)
-    ax.set_xticks(np.linspace(*xRange, steps[0]))
-    ax.set_yticks(np.linspace(*yRange, steps[1]))
-
-    # set labels
-    ax.set_xlabel('offspring frac. size')
-    ax.set_ylabel('frac. parrent to offspring')
-
-    return None
-
-
-#plots result of parameter scan
-def make_figure(statData):
-    #open figure and set size
-    fig = plt.figure()
-    util.set_fig_size_cm(fig, 15, 10)
-
-    #plot variables
-    nR = 3
-    nC = 2
-    
-    #plot total cell density
-    ax = plt.subplot(nR, nC, 1)
-    plot_heatmap(fig, ax, statData, 'NTot_mav', 5000)
-
-    #plot Cooperator density
-    ax = plt.subplot(nR, nC, 2)
-    plot_heatmap(fig, ax, statData, 'NCoop_mav', 5000)
-
-    #plot cooperator fraction
-    ax = plt.subplot(nR, nC, 3)
-    plot_heatmap(fig, ax, statData, 'fCoop_mav', 1)
-
-    #plot number of groups
-    ax = plt.subplot(nR, nC, 4)
-    plot_heatmap(fig, ax, statData, 'NGroup_mav', 500)
-
-    #plot mean group size
-    ax = plt.subplot(nR, nC, 5)
-    plot_heatmap(fig, ax, statData, 'groupSizeAv_mav', 5)
-
-    #plot median group size
-    ax = plt.subplot(nR, nC, 6)
-    plot_heatmap(fig, ax, statData, 'groupSizeMed_mav', 5)
-    
-    #clean up figure
-    plt.tight_layout() 
-    
-    #save figure
-    fig.savefig(fig_Folder / figureName,
-                format="pdf", transparent=True)
-        
-    return None
-
-
 #run parscan and make figure
 if __name__ == "__main__":
     statData = load_or_run_model()
-    make_figure(statData)
+    plotParScan.make_fig(dataFileName)
 

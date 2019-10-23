@@ -61,88 +61,6 @@ def create_randMat(num_t, num_rand):
     return randMat
 
 
-# %% Set figure size in cm
-def set_fig_size_cm(fig, w, h):
-    cmToInch = 0.393701
-    wInch = w * cmToInch
-    hInch = h * cmToInch
-    fig.set_size_inches(wInch, hInch)
-    return None
-
-
-# %%calculate timestep to have max 1 host level event per step
-@jit(f8(f8, f8[:]), nopython=True)
-def calc_max_time_step(max_host_prop, dtVec):
-    max_p2 = 0.01
-    # calc P(2 events)
-    p0 = np.exp(-max_host_prop * dtVec)
-    p1 = max_host_prop * dtVec * np.exp(-max_host_prop * dtVec)
-    p2 = 1 - p0 - p1
-    # choose biggest dt with constrained that P(2 events) < maxP2
-    dtMax = dtVec[p2 < max_p2].max()
-    dtMax = max(dtMax, dtVec.min())
-    return dtMax
-
-
-# %% fast implementation of normal distribution
-#JIT compatible normal cdf    
-@jit(f8(f8), nopython=True)
-def norm_cdf(x):
-    'Cumulative distribution function for the standard normal distribution'
-    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
-
-# inverse normal cdf
-def norm_inv_cdf(x):
-    return - math.sqrt(2.0) * special.erfcinv(2.0 * x)
-
-# Cython version of Scipy ndtri function (inv cdf)
-@jit(f8(f8), nopython=True)
-def ndtri_in_njit(x):
-    return ndtri_fn(x)
-
-#JIT compatible inverse cdf    
-@jit(f8(f8), nopython=True)
-def norm_inv_cdf_jit(x):
-    return ndtri_in_njit(x)
-
-
-# convert rand num with uniform distribution to one with trunc norm distribution
-    #fast JIT compatible version
-@jit(f8(f8, f8, f8, f8, f8), nopython=True)
-def trunc_norm_fast(exp, std, minV, maxV, rnd):
-    minX = norm_cdf((minV - exp) / std)
-    maxX = norm_cdf((maxV - exp) / std)
-    rndRescaled = rnd * (maxX - minX) + minX
-    rndTrunc = norm_inv_cdf_jit(rndRescaled) * std + exp
-    if rndTrunc < minV:
-        rndTrunc = minV
-    elif rndTrunc > maxV:
-        rndTrunc = maxV
-    return rndTrunc
-
-
-# convert rand num with uniform distribution to one with trunc norm distribution
-#Non JIT version
-def trunc_norm(exp, std, min=-np.inf, max=np.inf, type='lin'):
-    # log transform data if needed
-    if type == 'log':
-        exp = math.log10(exp)
-        min = math.log10(min)
-        max = math.log10(max)
-    elif type != 'lin':
-        raise Exception('problem with trunc_norm only support lin or log mode')
-    # convert bounds to to standard normal distribution
-    minT = (min - exp) / std
-    maxT = (max - exp) / std
-    # draw from truncated normal distribution and transfrom to desired mean and var
-    newT = st.truncnorm.rvs(minT, maxT) * std + exp
-    # log transfrom if needed
-    if type == 'log':
-        newT = 10 ** newT
-    return newT
-
-
-
 # %% Model sampling functions
 #calculate moving average of time vector
 @jit(UniTuple(f8, 2)(f8[:], i8, i8), nopython=True)
@@ -153,16 +71,6 @@ def calc_moving_av(f_t, curr_idx, windowLength):
     movindStd = f_t[start_idx:curr_idx].std()
 
     return (movingAv, movindStd)
-
-
-# calculate moving median of time vector
-@jit(f8(f8[:], i8, i8), nopython=True)
-def calc_moving_med(f_t, curr_idx, windowLength):
-    # get first time point
-    start_idx = max(0, curr_idx - windowLength + 1)
-    movingMed = np.median(f_t[start_idx:curr_idx])
-
-    return movingMed
 
 
 # calculate rms error of time vector
@@ -179,15 +87,5 @@ def calc_rms_error(mav_t, curr_idx, windowLength):
     rms_err = math.sqrt(meanErrorSquared)
 
     return rms_err
-
-
-#%% convert value with continuos categorial states to labeled categorial states
-def make_categorial(vector):
-    elements = np.unique(vector)
-    indexVec = np.arange(elements.size)
-    cat_vector = np.zeros(vector.size)
-    for idx in range(vector.size):
-        cat_vector[idx] = indexVec[elements == vector[idx]]
-    return cat_vector
 
 

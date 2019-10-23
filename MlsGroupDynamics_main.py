@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 15 10:29:20 2019
+Created on Oct 15 2019
 
-Last Update Oct 16 2019
+Last Update Oct 22 2019
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -182,17 +182,16 @@ def sample_extinction(output, distFCoop, binFCoop,
     # store time
     output['time'][sample_idx] = currT
 
-    # calc number of groups
-    output['NGroup'][sample_idx] = 0
 
     # calc total population sizes
-    output['NA'][sample_idx] = 0
-    output['NAprime'][sample_idx] = 0
-    output['NB'][sample_idx] = 0
-    output['NBprime'][sample_idx] = 0
-    output['NCoop'][sample_idx] = 0
-    output['NCoop_mav'][sample_idx] = 0
-    output['rms_err'][sample_idx] = 0
+    for varname in stateVar:
+        outname = varname + '_mav'
+        output[varname][sample_idx] = 0
+        output[outname][sample_idx] = 0
+        
+    output['rms_err_NCoop'][sample_idx] = 0
+    output['rms_err_NGroup'][sample_idx] = 0
+
 
     # calc distribution groupsizes
     distGrSize[sample_idx, :] = 0
@@ -580,7 +579,13 @@ def run_model(model_par):
                                      distGrSize, binGrSize, sampleIdx, currT, mavInt, rmsInt)
             # check if steady state has been reached
             if currT > minTRun:
-                if output['rms_err'][sampleIdx - 1] < model_par['rms_err_treshold']: break
+                NCoopStable = output['rms_err_NCoop'][sampleIdx - 1] \
+                    < model_par['rms_err_treshold']
+                NGroupStable = output['rms_err_NGroup'][sampleIdx - 1] \
+                    < model_par['rms_err_treshold']
+
+                if NCoopStable and NGroupStable:
+                    break
 
     # cut off non existing time points at end
     output = output[0:sampleIdx]
@@ -670,6 +675,8 @@ def single_run_with_plot(model_par):
     # plot number of groups
     plt.subplot(nR, nC, 1)
     plot_data(output, "NGroup")
+    plot_data(output, "NGroup_mav")
+
     plt.ylabel("# group")
     plt.legend()
 
@@ -691,8 +698,10 @@ def single_run_with_plot(model_par):
 
     # plot rms error
     plt.subplot(nR, nC, 4)
-    plot_data(output, "rms_err",type='log')
-    plt.ylabel("rms error NCoop_mav")
+    plot_data(output, "rms_err_NCoop",type='log')
+    plot_data(output, "rms_err_NGroup",type='log')
+    plt.legend()
+    plt.ylabel("rms error")
 
     #plot distribution group size
     axs = plt.subplot(nR, nC, 5)
