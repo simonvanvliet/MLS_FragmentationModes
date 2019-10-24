@@ -109,12 +109,12 @@ def make_fig(fileName):
     #plot total cell density
     ax = plt.subplot(nR, nC, 1)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NTot_mav', 5E4)
+                        offspr_fracVec, statData, 'NTot_mav', 1E3)
     
     #plot Cooperator density
     ax = plt.subplot(nR, nC, 2)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NCoop_mav', 5E4)
+                        offspr_fracVec, statData, 'NCoop_mav', 1E3)
     
     #plot cooperator fraction
     ax = plt.subplot(nR, nC, 3)
@@ -124,17 +124,17 @@ def make_fig(fileName):
     #plot number of groups
     ax = plt.subplot(nR, nC, 4)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NGroup_mav', 100)
+                        offspr_fracVec, statData, 'NGroup_mav', 10)
     
     #plot mean group size
     ax = plt.subplot(nR, nC, 5)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'groupSizeAv_mav', 50)
+                        offspr_fracVec, statData, 'groupSizeAv_mav', 10)
     
     #plot median group size
     ax = plt.subplot(nR, nC, 6)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'groupSizeMed_mav', 50)
+                        offspr_fracVec, statData, 'groupSizeMed_mav', 10)
     
     #clean up figure
     plt.tight_layout() 
