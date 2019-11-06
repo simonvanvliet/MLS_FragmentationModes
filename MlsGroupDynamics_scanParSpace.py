@@ -37,11 +37,11 @@ numCore = 4 #number of cores to run code on
 
 data_folder = Path(str(Path.home())+"/ownCloud/MLS_GroupDynamics_shared/Data/")
 fig_Folder = Path(str(Path.home())+"/ownCloud/MLS_GroupDynamics_shared/Figures/")
-mainName = 'scanFissionModes_Zoom'
+mainName = 'scanFissionModes_New'
 
 #setup variables to scan
-offspr_sizeVec = np.arange(0.005, 0.151, 0.005) 
-offspr_fracVec = np.arange(0.5, 1.01, 0.05) 
+offspr_sizeVec = np.arange(0.01, 0.25, 0.01) 
+offspr_fracVec = np.arange(0.05, 1, 0.1) 
 
 
 #set other parameters
@@ -57,17 +57,19 @@ model_par = {
     # settings for initial condition
     "init_groupNum":    100,  # initial # groups
     # initial composition of groups (fractions)
-    "init_groupComp":   [0.5, 0, 0.5, 0],
-    "init_groupDens":   100,  # initial total cell number in group
+    "init_fCoop":       1,
+    "init_groupDens":   100,  # initial total cell number in group  
     # settings for individual level dynamics
+    "indv_NType":       2,
     "indv_cost":        0.05,  # cost of cooperation
-    "indv_deathR":      0.001, # death rate individuals
-    "indv_mutationR":   1E-2,  # mutation rate to cheaters
-    "indv_interact":    1,      #0 1 to turn off/on crossfeeding
+    "indv_K":           100,  # total group size at EQ if f_coop=1
+    "indv_mutationR":   1E-3,  # mutation rate to cheaters
+    # difference in growth rate b(j+1) = b(j) / asymmetry
+    "indv_asymmetry":    5,
     # setting for group rates
     'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
     'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
-    'gr_K':             2E3,   # total carrying capacity of cells
+    'gr_K':             100,   # total carrying capacity of cells
     'gr_tau':           100,   # relative rate individual and group events
     # settings for fissioning
     'offspr_size':      0.5,  # offspr_size <= 0.5 and
@@ -76,10 +78,11 @@ model_par = {
 }
 
 #setup name to save files
-parName = '_cost%.0e_mu%.0e_tau%i_interact%i_dr%.0e_grK%.0e_sFis%.0e_sExt%.0e' % (
+parName = '_NSpecies%i_Assym%.0g_cost%.0g_mu%.0g_tau%i_indvK%.0e_grK%.0g_sFis%.0g_sExt%.0g' % (
+    model_par['indv_NType'],model_par['indv_asymmetry'],
     model_par['indv_cost'], model_par['indv_mutationR'], 
-    model_par['gr_tau'], model_par['indv_interact'],
-    model_par['indv_deathR'], model_par['gr_K'],
+    model_par['gr_tau'], 
+    model_par['indv_K'], model_par['gr_K'],
     model_par['gr_Sfission'], model_par['gr_Sextinct'])
 dataFileName = mainName + parName 
 dataFilePath = data_folder / (dataFileName + '.npz')
