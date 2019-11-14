@@ -19,9 +19,6 @@ Import dependencies & define global constants
 
 from numba.types import UniTuple, Tuple
 from numba import jit, void, f8, i8
-import time
-import matplotlib
-import matplotlib.pyplot as plt
 import math
 import numpy as np
 import MlsGroupDynamics_utilities as util
@@ -213,7 +210,7 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(void(f8[::1], f8[:, :], f8[::1], f8, f8[::1], f8[::1]), nopython=True)
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, f8[::1], f8[::1]), nopython=True)
 def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup):
     # calc total number of individuals per group, use matrix product for speed
     Ntot = oneVecType @ groupMat
@@ -255,7 +252,7 @@ def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup):
     return None
 
 # process individual level events
-@jit(i8(f8[:, :], f8[::1], f8, f8[::1]), nopython=True)
+@jit(i8(f8[:, ::1], f8[::1], f8, f8[::1]), nopython=True)
 def process_indv_event(groupMat, rateVector, mutationR, rand):
     # Note: groupMat is updated in place, it does not need to be returned
 
@@ -307,7 +304,7 @@ Sub functions group dynamics
 ============================================================================"""
 
 # remove group from group matrix
-@jit(Tuple((f8[:, :], i8))(f8[:, :], i8), nopython=True)
+@jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], i8), nopython=True)
 def remove_group(groupMat, groupDeathID):
     # Note: groupMat is re-created, it has to be returned
     # create helper vector
@@ -324,7 +321,7 @@ def remove_group(groupMat, groupDeathID):
 
 
 # calculate fission and extinction rate of all groups
-@jit(f8[::1](f8[:, :], f8, f8, f8, f8[::1], f8[::1]), nopython=True)
+@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8[::1], f8[::1]), nopython=True)
 def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecType, oneVecGroup):
     # calc total number of individuals per group, use matrix product for speed
     Ntot_group = oneVecType @ groupMat
@@ -352,7 +349,7 @@ def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecTy
     return rates
 
 
-@jit(Tuple((f8[:],f8[:,:]))(f8[:], f8, f8), nopython=True)
+@jit(Tuple((f8[::1],f8[:, ::1]))(f8[::1], f8, f8), nopython=True)
 def fission_groups(parentGroup, offspr_size, offspr_frac):        
     #number of cells in parents
     cellNumPar = parentGroup.sum()
@@ -400,7 +397,7 @@ def fission_groups(parentGroup, offspr_size, offspr_frac):
 
 
 # process individual level events
-@jit(Tuple((f8[:, :], i8))(f8[:, :], f8[::1], f8[::1], f8, f8), nopython=True)
+@jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8), nopython=True)
 def process_group_event(groupMat, groupRates, rand, offspr_size, offspr_frac):
     # get number of groups
     numGroup = groupMat.shape[1]
@@ -416,7 +413,7 @@ def process_group_event(groupMat, groupRates, rand, offspr_size, offspr_frac):
     if eventype < 1:
         # fission event - add new group and split cells
         # get parent composition
-        parentGroup = groupMat[:, eventGroup]
+        parentGroup = groupMat[:, eventGroup].copy()
 
         #perform fission process
         if offspr_size > 0:
@@ -486,18 +483,14 @@ def run_model(model_par):
 
     # initialize output matrix
     output, distFCoop, binFCoop, distGrSize, binGrSize = init_output_matrix(model_par)
-
-    # helper vector to calc sum over all cell types
-    numType = int(model_par['indv_NType'])
-    oneVecType = np.ones(2 * numType)
-    oneVecCoop = np.ones(2 * numType)
-    oneVecCoop[1::2] = 0
-
-
+  
     # helper vector to calc sum over all groups
-    numGroup = groupMat.shape[1]
+    numGroup=groupMat.shape[1]
+    numType = int(model_par['indv_NType'])
     oneVecGroup, oneVecIndvR, oneVecGrR, indvRates = create_helper_vector(
         numGroup, numType)
+    
+    oneVecType = np.ones(2 * numType)
 
     # get model rates
     indv_K, indv_cost, indv_mutationR, indv_asymmetry = [float(model_par[x])
@@ -507,9 +500,11 @@ def run_model(model_par):
     bVecCoop = 1 / indv_asymmetry**(np.arange(numType))
     bVecCoop *= (bVecCoop.sum()**(numType - 1)) / np.prod(bVecCoop)
     #include costs and calc birth rates for cooperators and defectors respectively
-    bVec = np.kron(bVecCoop, np.array([(1-indv_cost), 1]))
+    bVec=np.kron(bVecCoop, np.array([(1 - indv_cost), 1]))
+    #convert caryinf capacity to death rate
     indv_deathR = 1 / indv_K
 
+    #get group rates
     gr_Sfission, gr_Sextinct, gr_K, gr_tau = [float(model_par[x])
                                               for x in ('gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau')]
 
@@ -630,163 +625,13 @@ Code that calls model and plots results
 # code to plot data
 # set type to "lin" or "log" to switch between lin or log plot
 
-def plot_data(dataStruc, FieldName, type='lin'):
-    # linear plot
-    if type == 'lin':
-        plt.plot(dataStruc['time'], dataStruc[FieldName], label=FieldName)
-    # log plot
-    elif type == 'log':
-        plt.semilogy(dataStruc['time'], dataStruc[FieldName], label=FieldName)
-
-    # set x-label
-    plt.xlabel("time")
-    #maxTData = np.nanmax(dataStruc['time'])
-    #plt.xlim((0, maxTData))
-
-    return None
-
-
-def plot_heatmap(fig, axs, data, yName, type='lin'):
-    # linear plot
-    if type == 'lin':
-        currData = data.transpose()
-        labelName = "density"
-        cRange = [0, 0.1]
-    # log plot
-    elif type == 'log':
-        currData = np.log10(
-            data.transpose() + np.finfo(float).eps)
-        labelName = "log10 density"
-        cRange = [-2, -1]
-
-    im = axs.imshow(currData, cmap="viridis",
-                    interpolation='nearest',
-                    extent=[0, 1, 0, 1],
-                    origin='lower',
-                    vmin = cRange[0],
-                    vmax = cRange[1],
-                    aspect='auto')
-    axs.set_xticks([0, 1])
-    axs.set_yticks([0, 1])
-    axs.set_ylabel(yName)
-    axs.set_xlabel('time')
-    fig.colorbar(im, ax=axs, orientation='vertical',
-                fraction=.1, label=labelName)
-    axs.set_yticklabels([0, 1])
-
-    return None
-
-# run model, plot dynamics
-def single_run_with_plot(model_par):
-    # run code
-    start = time.time()
-    output, distFCoop, distGrSize = run_model(model_par)
-    end = time.time()
-
-    # print timing
-    print("Elapsed time run 1 = %s" % (end - start))
-
-    # setup figure formattRing
-    font = {'family': 'arial',
-            'weight': 'normal',
-            'size': 6}
-    matplotlib.rc('font', **font)
-
-    # open figure
-    fig = plt.figure()
-    nR = 3
-    nC = 2
-
-    # plot number of groups
-    plt.subplot(nR, nC, 1)
-    plot_data(output, "NGroup")
-    plot_data(output, "NGroup_mav")
-
-    plt.ylabel("# group")
-    plt.legend()
-
-    # plot number of cells
-    plt.subplot(nR, nC, 2)
-    for tt in range(int(model_par['indv_NType'])):
-        plot_data(output, 'N%i' % tt)
-        plot_data(output, 'N%imut' % tt)
-    plt.ylabel("# cell")
-    plt.legend()
-
-    # plot fraction of coop
-    plt.subplot(nR, nC, 3)
-    plot_data(output, "NCoop")
-    plot_data(output, "NCoop_mav")
-    plt.ylabel("density cooperator")
-    plt.legend()
-
-    # plot rms error
-    plt.subplot(nR, nC, 4)
-    plot_data(output, "rms_err_NCoop",type='log')
-    plot_data(output, "rms_err_NGroup",type='log')
-    plt.legend()
-    plt.ylabel("rms error")
-
-    #plot distribution group size
-    axs = plt.subplot(nR, nC, 5)
-    plot_heatmap(fig, axs, distGrSize, 'group size', type='lin')
-
-    #plot distribution fraction coop
-    axs = plt.subplot(nR, nC, 6)
-    plot_heatmap(fig, axs, distFCoop, 'coop. freq.', type='lin')
-
-    # set figure size
-    fig.set_size_inches(6, 6)
-    plt.tight_layout()  # cleans up figure and aligns things nicely
-
-    return None
-
-
-# run model with default parameters
-def run_w_def_parameter():
-    model_par = {
-        # solver settings
-        "maxT":             1000,  # total run time
-        "minT":             200,   # min run time
-        "sampleInt":        1,     # sampling interval
-        "mav_window":       200,   # average over this time window
-        "rms_window":       200,   # calc rms change over this time window
-        "rms_err_trNCoop":    2E-2,  # when to stop calculations
-        "rms_err_trNGr":    1E-1,  # when to stop calculations
-        # settings for initial condition
-        "init_groupNum":    10,  # initial # groups
-        # initial composition of groups (fractions)
-        "init_fCoop":       1,
-        "init_groupDens":   100,  # initial total cell number in group
-        # settings for individual level dynamics
-        "indv_NType":       2,
-        "indv_cost":        0.01,  # cost of cooperation
-        "indv_K":           100,  # total group size at EQ if f_coop=1
-        "indv_mutationR":   1E-3,  # mutation rate to cheaters
-        # difference in growth rate b(j+1) = b(j) / asymmetry
-        "indv_asymmetry":    5,
-        # setting for group rates
-        'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
-        'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
-        'gr_K':             10,   # carrying capacity of groups
-        'gr_tau':           100,   # relative rate individual and group events
-        # settings for fissioning
-        'offspr_size':      0.2,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.75    # offspr_size < offspr_frac < 1-offspr_size'
-
-    }
-
-    single_run_with_plot(model_par)
-
-    return None
-
 #run model store only final state 
 def single_run_finalstate(model_par):
     # run model
     output, distFCoop, distGrSize = run_model(model_par)
 
     #input parameters to store
-    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_interact',
+    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry',
                'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
                'offspr_size', 'offspr_frac']
 
@@ -821,4 +666,39 @@ def single_run_finalstate(model_par):
 # this piece of code is run only when this script is executed as the main
 if __name__ == "__main__":
     print("running with default parameter")
-    run_w_def_parameter()
+
+    model_par = {
+        # solver settings
+        "maxT":             1000,  # total run time
+        "minT":             200,   # min run time
+        "sampleInt":        1,     # sampling interval
+        "mav_window":       200,   # average over this time window
+        "rms_window":       200,   # calc rms change over this time window
+        "rms_err_trNCoop":    2E-2,  # when to stop calculations
+        "rms_err_trNGr":    1E-1,  # when to stop calculations
+        # settings for initial condition
+        "init_groupNum":    10,  # initial # groups
+        # initial composition of groups (fractions)
+        "init_fCoop":       1,
+        "init_groupDens":   50,  # initial total cell number in group
+        # settings for individual level dynamics
+        "indv_NType":       2,
+        "indv_cost":        0.01,  # cost of cooperation
+        "indv_K":           50,  # total group size at EQ if f_coop=1
+        "indv_mutationR":   1E-3,  # mutation rate to cheaters
+        # difference in growth rate b(j+1) = b(j) / asymmetry
+        "indv_asymmetry":    5,
+        # setting for group rates
+        # fission rate = (1 + gr_Sfission * N)/gr_tau
+        'gr_Sfission':      0.,
+        # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
+        'gr_Sextinct':      0.,
+        'gr_K':             20,   # carrying capacity of groups
+        'gr_tau':           100,   # relative rate individual and group events
+        # settings for fissioning
+        'offspr_size':      0.5,  # offspr_size <= 0.5 and
+        'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
+
+    }
+
+    output, distFCoop, distGrSize = run_model(model_par)

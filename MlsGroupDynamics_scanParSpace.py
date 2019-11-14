@@ -50,8 +50,8 @@ model_par = {
     "maxT":             3000,  # total run time
     "minT":             400,   # min run time
     "sampleInt":        1,     # sampling interval
-    "mav_window":       100,   # average over this time window
-    "rms_window":       100,   # calc rms change over this time window
+    "mav_window":       200,   # average over this time window
+    "rms_window":       200,   # calc rms change over this time window
     "rms_err_trNCoop":  2E-2,  # when to stop calculations
     "rms_err_trNGr":    0.1,  # when to stop calculations
     # settings for initial condition
@@ -65,7 +65,7 @@ model_par = {
     "indv_K":           100,  # total group size at EQ if f_coop=1
     "indv_mutationR":   1E-3,  # mutation rate to cheaters
     # difference in growth rate b(j+1) = b(j) / asymmetry
-    "indv_asymmetry":    5,
+    "indv_asymmetry":    4 ,
     # setting for group rates
     'gr_Sfission':      0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
     'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau

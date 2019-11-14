@@ -1,8 +1,11 @@
 #ignore folders
 Data/
+ENV/
 Figures/
 __pycache__/
 .vscode/
 .spyproject/
 *.ipynb
 temp.py
+*.npz
+*.pdf

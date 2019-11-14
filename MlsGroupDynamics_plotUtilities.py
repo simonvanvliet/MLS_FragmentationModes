@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# -*- CoDing: utf-8 -*-
+
 """
 CreateD on Oct 23 2019
 Last Update Oct 23 2019
@@ -75,5 +74,51 @@ def plot_heatmap(fig, ax, offspr_sizeVec, offspr_fracVec, statData, dataName, ro
     # set labels
     ax.set_xlabel('offspring frac. size')
     ax.set_ylabel('frac. parrent to offspring')
+
+    return None
+
+    #make heatmap of 2D matrix
+
+
+#extract transect data for selected parameters
+#returns vectors x and y that contain data.
+# xName and yName specify field names of data to assign to x,y axis
+# keyDict is dictionary specifying the desired value of all varying parameters 
+def create_transect(statData, xName, yName, keyDict):
+    #init logical vector
+    dataIdx = np.ones(statData.size)
+    
+    #filter for all keys provided in keyDict
+    for key, value in keyDict.items():
+        #find items in list that have correct fissioning parameters for current location in matrix
+        currIdx = statData[key] == value
+        dataIdx = np.logical_and(dataIdx, currIdx)
+    
+    #extract x,y data
+    xData = statData[xName][dataIdx]
+    yData = statData[yName][dataIdx]
+
+    return (xData, yData)
+
+#plots transect
+def plot_transect(fig, ax, statData, xName, yName, keyDict, dataName):
+    #convert 1D list to 2D matrix
+    xData, yData = create_transect(statData, xName, yName, keyDict)
+
+    #plot heatmap
+    ax.plot(xData, yData, label=dataName)
+
+    #make axis nice
+    xRange = (xData.min(), xData.max())
+    yRange = (yData.min(), yData.max())
+    steps = (3, 3)
+    ax.set_xlim(xRange)
+    #ax.set_ylim(yRange)
+    ax.set_xticks(np.linspace(*xRange, steps[0]))
+    #ax.set_yticks(np.linspace(*yRange, steps[1]))
+
+    # set labels
+    ax.set_xlabel(xName)
+    ax.set_ylabel(yName)
 
     return None
