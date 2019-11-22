@@ -28,15 +28,14 @@ Define parameters
 numCore = 22 #number of cores to run code on
 numThread = 2 #number o threads per core
 #where to store output?
-mainName = 'vanVliet_scan'
+mainName = 'vanVliet_scanFrac'
 
 #setup variables to scan
-offspr_sizeVec = np.concatenate((np.arange(0.01, 0.25, 0.01),
- np.arange(0.25, 0.5, 0.025)))
-mu_vec = np.array([5e-4, 1e-3, 5e-3, 1e-2])
-type_vec = np.arange(1,5)
-tau_vec = np.array([100, 1000, 10000])
-assymetry_vec = np.array([1, 2, 4])
+offspr_fracVec = np.arange(0.1, 0.9, 0.025)
+gr_SfissionVec = np.array([0, 1./100])
+gr_SextinctVec = np.array([0, -1./5, -1./10, -1./50])
+
+nSim = offspr_fracVec.size * gr_SfissionVec.size * gr_SextinctVec.size
 
 #set other parameters
 model_par = {
@@ -54,8 +53,8 @@ model_par = {
     "init_fCoop":       1,
     "init_groupDens":   50,  # initial total cell number in group  
     # settings for individual level dynamics
-    "indv_NType":       1,
-    "indv_cost":        0.01,  # cost of cooperation
+    "indv_NType":       2,
+    "indv_cost":        0.05,  # cost of cooperation
     "indv_K":           100,  # total group size at EQ if f_coop=1
     "indv_mutationR":   1E-3,  # mutation rate to cheaters
     # difference in growth rate b(j+1) = b(j) / asymmetry
@@ -66,13 +65,13 @@ model_par = {
     'gr_K':             100,   # total carrying capacity of cells
     'gr_tau':           100,   # relative rate individual and group events
     # settings for fissioning
-    'offspr_size':      0.5,  # offspr_size <= 0.5 and
+    'offspr_size':      0.1,  # offspr_size <= 0.5 and
     'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
 }
 
 #setup name to save files
-parName = '_cost%.0g_indvK%.0e_grK%.0g_sFis%.0g_sExt%.0g' % (
-    model_par['indv_cost'], 
+parName = '_off_size%.2g_cost%.0g_indvK%.0e_grK%.0g_sFis%.0g_sExt%.0g' % (
+    model_par['offspr_size'], model_par['indv_cost'], 
     model_par['indv_K'], model_par['gr_K'],
     model_par['gr_Sfission'], model_par['gr_Sextinct'])
 dataFileName = mainName + parName 
@@ -82,48 +81,59 @@ dataFileName = mainName + parName
 Define functions
 ============================================================================"""
 #set model parameters for fission mode
-def set_fission_mode(offspr_size, indv_NType, indv_mutationR, indv_asymmetry, gr_tau):
+def set_fission_mode(model_par, offspr_frac, gr_Sfission, gr_Sextinct):
     #copy model par (needed because otherwise it is changed in place)
-    offspr_frac = 1 - offspr_size
     model_par_local = model_par.copy()
-    model_par_local['offspr_size'] = offspr_size
     model_par_local['offspr_frac'] = offspr_frac
-    model_par_local['indv_NType'] = indv_NType
-    model_par_local['indv_mutationR'] = indv_mutationR
-    model_par_local['indv_asymmetry'] = indv_asymmetry
-    model_par_local['gr_tau'] = gr_tau
+    model_par_local['gr_Sfission'] = gr_Sfission
+    model_par_local['gr_Sextinct'] = gr_Sextinct
+
 
     return model_par_local
 
 # run model
-def run_model():
+def run_model(model_par, dataFileName):
     #create model paremeter list for all valid parameter range
     # *x unpacks variables stored in tuple x e.g. if x = (a1,a2,a3) than f(*x) = f(a1,a2,a3)
     # itertools.product creates all possible combination of parameters
-    modelParList = [set_fission_mode(*x)
-                   for x in itertools.product(*(offspr_sizeVec, type_vec, mu_vec, assymetry_vec, tau_vec))]
-
-    modelParList = modelParList[-44:]
+    modelParList = [set_fission_mode(model_par, *x)
+                   for x in itertools.product(*(offspr_fracVec, gr_SfissionVec, gr_SextinctVec))]
+    
+    #modelParList = [set_fission_mode(model_par, x) for x in offspr_fracVec]
+    modelParList[-2*numCore:]
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
 
-    #
     with parallel_backend("loky", inner_max_num_threads=numThread):
         results = Parallel(n_jobs=nJobs, verbose=10, timeout=1.E8)(
             delayed(mls.single_run_finalstate)(par) for par in modelParList)
     
     np.savez(dataFileName, results=results,
-             offspr_sizeVec = offspr_sizeVec,
-             mu_vec = mu_vec,
-             type_vec = type_vec,
-             tau_vec = tau_vec,
-             assymetry_vec = assymetry_vec,
+             offspr_fracVec = offspr_fracVec,
+             gr_SfissionVec = gr_SfissionVec,
+             gr_SextinctVec = gr_SextinctVec,
              modelParList = modelParList, date=datetime.datetime.now())
     
     return None
 
+def run_setGroupRate(gr_Sfission, gr_Sextinct):    
+    model_par['gr_Sfission'] = gr_Sfission
+    model_par['gr_Sextinct'] = gr_Sextinct
+    
+    #setup name to save files
+    parName = '_off_size%.2g_cost%.0g_indvK%.0e_grK%.0g_sFis%.0g_sExt%.0g' % (
+        model_par['offspr_size'], model_par['indv_cost'], 
+        model_par['indv_K'], model_par['gr_K'],
+        model_par['gr_Sfission'], model_par['gr_Sextinct'])
+    dataFileName = mainName + parName     
+    
+    run_model(model_par, dataFileName)
+    
+    return None
+
+
 #run parscan and make figure
 if __name__ == "__main__":
-    run_model()
+    run_model(model_par, dataFileName)
 

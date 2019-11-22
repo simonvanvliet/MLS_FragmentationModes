@@ -1,0 +1,14 @@
+Using base prefix '/cvmfs/soft.computecanada.ca/easybuild/software/2017/Core/python/3.7.4'
+New python executable in /localscratch/vanvliet.4241370.0/env/bin/python
+Installing setuptools, pip, wheel...
+done.
+Ignoring pip: markers 'python_version < "3"' don't match your environment
+Looking in links: /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/avx512, /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/avx2, /cvmfs/soft.computecanada.ca/custom/python/wheelhouse/generic
+Requirement already up-to-date: pip in /localscratch/vanvliet.4241370.0/env/lib/python3.7/site-packages (19.1.1)
+ERROR: unknown command "instal" - maybe you meant "install"
+Traceback (most recent call last):
+  File "CC_TransectFracPar.py", line 19, in <module>
+    import MlsGroupDynamics_main as mls
+  File "/home/vanvliet/MlsGroupDynamics_main.py", line 20, in <module>
+    from numba.types import UniTuple, Tuple
+ModuleNotFoundError: No module named 'numba'

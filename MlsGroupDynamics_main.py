@@ -22,6 +22,8 @@ from numba import jit, void, f8, i8
 import math
 import numpy as np
 import MlsGroupDynamics_utilities as util
+import time
+
 
 #output variables to store
 stateVar = ['NTot', 'NCoop', 'fCoop',
@@ -330,16 +332,17 @@ def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecTy
 #    Ntot = oneVecGroup @ Ntot_group
 
     # calc fission rate
-    if group_Sfission > 0:
-        fissionR = oneVecGroup + group_Sfission * Ntot_group
+    if group_Sfission != 0:
+        fissionR = group_Sfission * Ntot_group
+        fissionR[fissionR > 1] = 1
     else:
         fissionR = oneVecGroup
 
     # calc extinction rate
     groupDeathRate = oneVecGroup.size / group_K
-    if group_Sextinct > 0:
-        extinctR = (oneVecGroup + group_Sextinct * Ntot_group) * groupDeathRate
-        extinctR[extinctR < 0] = 0
+    if group_Sextinct != 0:
+        extinctR = (10 * oneVecGroup + group_Sextinct * Ntot_group) * groupDeathRate
+        extinctR[extinctR < 1] = 1
     else:
         extinctR = oneVecGroup * groupDeathRate
 
@@ -628,7 +631,10 @@ Code that calls model and plots results
 #run model store only final state 
 def single_run_finalstate(model_par):
     # run model
-    output, distFCoop, distGrSize = run_model(model_par)
+    
+    start = time.time()
+    output, distFCoop, distGrSize = run_model(model_par)    
+    end = time.time()
 
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry',
@@ -643,7 +649,7 @@ def single_run_finalstate(model_par):
     dTypeList1 = [(x, 'f8') for x in stateVarPlus]
     dTypeList2 = [(x+'_mav', 'f8') for x in stateVarPlus]
     dTypeList3 = [(x, 'f8') for x in parList]
-    dTypeList = dTypeList1 + dTypeList2 + dTypeList3
+    dTypeList = dTypeList1 + dTypeList2 + dTypeList3 +[('run_time', 'f8')]
     dType = np.dtype(dTypeList)
 
     output_matrix = np.zeros(1, dType)
@@ -656,6 +662,8 @@ def single_run_finalstate(model_par):
 
     for par in parList:
         output_matrix[par] = model_par[par]
+        
+    output_matrix['run_time'] = end - start   
 
     endDistFCoop = distFCoop[-1,:]
     endDistGrSize = distGrSize[-1, :]

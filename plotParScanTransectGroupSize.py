@@ -24,7 +24,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (withou extension)
-fileName = 'vanVliet_scan_cost0.01_indvK1e+02_grK1e+02_sFis0_sExt0'
+fileName = 'vanVliet_scanFrac_off_size0.1_cost0.05_indvK1e+02_grK1e+02_sFis0_sExt0_mk2'
 
 #set Folder
 data_folder = Path("./Data/")
@@ -85,11 +85,9 @@ def make_fig(fileName):
     loadName = data_folder / (fileName + '.npz')
     data_file = np.load(loadName, allow_pickle=True)
     results = data_file['results']
-    offspr_sizeVec = data_file['offspr_sizeVec']
-    type_vec = data_file['type_vec']
-    mu_vec = data_file['mu_vec']
-    assymetry_vec = data_file['assymetry_vec']
-    tau_vec = data_file['tau_vec']
+    gr_SfissionVec = data_file['gr_SfissionVec']
+    gr_SextinctVec = data_file['gr_SextinctVec']
+          
     data_file.close()
     
     
@@ -124,8 +122,6 @@ def make_fig(fileName):
             statData[par][i] = data[par]
         i += 1
 
-
-
     
     """============================================================================
     Make plot
@@ -138,46 +134,64 @@ def make_fig(fileName):
     #add _mav to get moving average value    
     
     fig = plt.figure()
-    pltutl.set_fig_size_cm(fig, 60, 40)
+    pltutl.set_fig_size_cm(fig, 60, 20)
     
     #plot variables
-    nC = type_vec.size * assymetry_vec.size
-    nR = tau_vec.size * 2
+    gr_SfissionVec
+    gr_SextinctVec
+    
+    
+    nC = gr_SextinctVec.size
+    nR = 2
 
     #loop over all variable parameters
-    for tt in range(type_vec.size):
-        for aa in range(assymetry_vec.size):
-            for cc in range(tau_vec.size):
-                index1 = cc * nC + tt * assymetry_vec.size + aa + 1
-                index2 = (cc+tau_vec.size) * nC + tt * assymetry_vec.size + aa + 1
+    for cc in range(gr_SextinctVec.size):
+        index1 = cc + 1
+        index2 = nC + cc + 1
+
+        #create subplot for each combination of assymetry, # type, and tau
+        ax1 = plt.subplot(nR, nC, index1)
+        ax2 = plt.subplot(nR, nC, index2)
+
+        titleName = 'Slope Extinction=%.2g' % (gr_SextinctVec[cc])
     
-                #create subplot for each combination of assymetry, # type, and tau
-                ax1 = plt.subplot(nR, nC, index1)
-                ax2 = plt.subplot(nR, nC, index2)
+        for mm in range(gr_SfissionVec.size):
+            #plot all different values of mu in same subplot
+            #set parameters for current curve to extract
+            keyDict = {
+                'gr_Sfission': gr_SfissionVec[mm],
+                'gr_Sextinct': gr_SextinctVec[cc],
+            }
+            dataName = 'Sl. Fission=%.0g' % gr_SfissionVec[mm]
+            #plot data
+            pltutl.plot_transect(
+                fig, ax1, statData, 'offspr_frac', 'NTot_mav', keyDict, dataName)
+            ax1.set_title(titleName)
+            ax1.legend()
 
-                titleName = 'NType=%i, Assymetry=%.0g, tau=%.0g' % (type_vec[tt], assymetry_vec[aa], tau_vec[cc])
+            pltutl.plot_transect(
+                fig, ax2, statData, 'offspr_frac', 'fCoop_mav', keyDict, dataName)
+
+            ax2.set_title(titleName)
+            ax2.legend()
             
-                for mm in range(mu_vec.size):
-                    #plot all different values of mu in same subplot
-                    #set parameters for current curve to extract
-                    keyDict = {
-                        'indv_NType': type_vec[tt],
-                        'indv_asymmetry': assymetry_vec[aa],
-                        'gr_tau': tau_vec[cc],
-                        'indv_mutationR': mu_vec[mm],
-                    }
-                    dataName = 'mu=%.0g' % mu_vec[mm]
-                    #plot data
-                    pltutl.plot_transect(
-                        fig, ax1, statData, 'offspr_size', 'NTot_mav', keyDict, dataName)
-                    ax1.set_title(titleName)
-                    ax1.legend()
 
-                    pltutl.plot_transect(
-                        fig, ax2, statData, 'offspr_size', 'fCoop_mav', keyDict, dataName)
-
-                    ax2.set_title(titleName)
-                    ax2.legend()
+#    #create subplot for each combination of assymetry, # type, and tau
+#    ax1 = plt.subplot(1, 2, 1)
+#    ax2 = plt.subplot(1, 2, 2)
+#
+#
+#    #plot all different values of mu in same subplot
+#    #set parameters for current curve to extract
+#    keyDict = {}
+#    #plot data
+#    pltutl.plot_transect(
+#        fig, ax1, statData, 'offspr_frac', 'NTot_mav', keyDict, "")
+#    ax1.legend()
+#
+#    pltutl.plot_transect(
+#        fig, ax2, statData, 'offspr_frac', 'fCoop_mav', keyDict, "")
+#    ax2.legend()
     
     #clean up figure
     plt.tight_layout() 

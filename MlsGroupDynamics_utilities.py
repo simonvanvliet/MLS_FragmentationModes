@@ -14,13 +14,10 @@ Contains varies functions used in MLS model code and in figure code
 """
 import math
 import numpy as np
-import scipy.stats as st
-from numba import jit, f8, i8, vectorize
+from numba import jit, f8, i8
 from numba.types import UniTuple
-from scipy import special
 from numba.extending import get_cython_function_address
 import ctypes
-import scipy.optimize as opt
 
 # create numba compatible inverse normal cdf function
 addr = get_cython_function_address("scipy.special.cython_special", "ndtri")

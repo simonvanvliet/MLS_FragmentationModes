@@ -86,7 +86,7 @@ def plot_heatmap(fig, ax, offspr_sizeVec, offspr_fracVec, statData, dataName, ro
 # keyDict is dictionary specifying the desired value of all varying parameters 
 def create_transect(statData, xName, yName, keyDict):
     #init logical vector
-    dataIdx = np.ones(statData.size)
+    dataIdx = np.ones_like(statData, dtype=np.int16)
     
     #filter for all keys provided in keyDict
     for key, value in keyDict.items():
