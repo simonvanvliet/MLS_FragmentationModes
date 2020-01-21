@@ -212,8 +212,8 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, f8[::1], f8[::1]), nopython=True)
-def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup):
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, f8[::1], f8[::1], f8), nopython=True)
+def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup, delta_indv):
     # calc total number of individuals per group, use matrix product for speed
     Ntot = oneVecType @ groupMat
     
@@ -248,8 +248,12 @@ def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup):
         # calc rates
         rates[bIdxC1: bIdxC1 + nGroup] = bVec[cIdx] * coopPart * groupMat[cIdx, :]
         rates[bIdxD1: bIdxD1 + nGroup] = bVec[dIdx] * coopPart * groupMat[dIdx, :] 
-        rates[dIdxC1: dIdxC1 + nGroup] = deathR * Ntot * groupMat[cIdx, :] 
-        rates[dIdxD1: dIdxD1 + nGroup] = deathR * Ntot * groupMat[dIdx, :]
+        if delta_indv != 0:
+            rates[dIdxC1: dIdxC1 + nGroup] = deathR * groupMat[cIdx, :] * Ntot**delta_indv
+            rates[dIdxD1: dIdxD1 + nGroup] = deathR * groupMat[dIdx, :] * Ntot**delta_indv
+        else:
+            rates[dIdxC1: dIdxC1 + nGroup] = deathR * groupMat[cIdx, :]
+            rates[dIdxD1: dIdxD1 + nGroup] = deathR * groupMat[dIdx, :] 
 
     return None
 
@@ -323,26 +327,24 @@ def remove_group(groupMat, groupDeathID):
 
 
 # calculate fission and extinction rate of all groups
-@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8[::1], f8[::1]), nopython=True)
-def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecType, oneVecGroup):
+@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8[::1], f8[::1], f8, f8, f8), nopython=True)
+def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecType, oneVecGroup, delta_group, Nmin, group_offset):
     # calc total number of individuals per group, use matrix product for speed
     Ntot_group = oneVecType @ groupMat
 
-#    # calc total number of individuals
-#    Ntot = oneVecGroup @ Ntot_group
+    # calc total number of individuals
+    Ntot = oneVecGroup @ Ntot_group
 
     # calc fission rate
-    if group_Sfission != 0:
-        fissionR = group_Sfission * Ntot_group
-        fissionR[fissionR > 1] = 1
-    else:
-        fissionR = oneVecGroup
+    fissionR = Ntot_group * group_Sfission + oneVecGroup * group_offset #first assign all groups a rate
+    if Nmin > 0:
+        fissionR[Ntot_group < Nmin] = 0 #set rate to zero for small groups
 
     # calc extinction rate
-    groupDeathRate = oneVecGroup.size / group_K
-    if group_Sextinct != 0:
-        extinctR = (10 * oneVecGroup + group_Sextinct * Ntot_group) * groupDeathRate
-        extinctR[extinctR < 1] = 1
+    #groupDeathRate = Ntot * oneVecGroup.size / group_K
+    groupDeathRate = Ntot / group_K
+    if delta_group != 0:
+        extinctR = groupDeathRate * (1/Ntot_group)**delta_group
     else:
         extinctR = oneVecGroup * groupDeathRate
 
@@ -498,7 +500,11 @@ def run_model(model_par):
     # get model rates
     indv_K, indv_cost, indv_mutationR, indv_asymmetry = [float(model_par[x])
                                                          for x in ('indv_K', 'indv_cost', 'indv_mutationR', 'indv_asymmetry')]
-
+    delta_indv = float(model_par['delta_indv'])
+    delta_group = float(model_par['delta_group'])
+    Nmin = float(model_par['Nmin'])
+    group_offset = float(model_par['group_offset'])    
+    
     #calc birth rates to keep constant EQ group size when all cells are cooperators
     bVecCoop = 1 / indv_asymmetry**(np.arange(numType))
     bVecCoop *= (bVecCoop.sum()**(numType - 1)) / np.prod(bVecCoop)
@@ -541,11 +547,12 @@ def run_model(model_par):
 
         # calc rates of individual level events
         calc_indv_rates(indvRates, groupMat, bVec,
-                                    indv_deathR, oneVecType, oneVecGroup)
+                                    indv_deathR, oneVecType, oneVecGroup, delta_indv)
 
         # calc rates of group events
         groupRates = calc_group_rates(groupMat,
-                                      gr_Sfission, gr_Sextinct, gr_K, oneVecType, oneVecGroup)
+                                      gr_Sfission, gr_Sextinct, gr_K, oneVecType, oneVecGroup,
+                                      delta_group, Nmin, group_offset)
 
         # calculate total propensities
         indvProp = oneVecIndvR @ indvRates
@@ -639,7 +646,7 @@ def single_run_finalstate(model_par):
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry',
                'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
-               'offspr_size', 'offspr_frac']
+               'offspr_size', 'offspr_frac', 'Nmin', 'group_offset', 'delta_indv', 'delta_group']
 
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
@@ -676,37 +683,38 @@ if __name__ == "__main__":
     print("running with default parameter")
 
     model_par = {
-        # solver settings
-        "maxT":             1000,  # total run time
-        "minT":             200,   # min run time
+        "maxT":             10000,  # total run time
+        "minT":             250,   # min run time
         "sampleInt":        1,     # sampling interval
         "mav_window":       200,   # average over this time window
         "rms_window":       200,   # calc rms change over this time window
-        "rms_err_trNCoop":    2E-2,  # when to stop calculations
+        "rms_err_trNCoop":  2E-2,  # when to stop calculations
         "rms_err_trNGr":    1E-1,  # when to stop calculations
         # settings for initial condition
-        "init_groupNum":    10,  # initial # groups
+        "init_groupNum":    20,  # initial # groups
         # initial composition of groups (fractions)
         "init_fCoop":       1,
         "init_groupDens":   50,  # initial total cell number in group
         # settings for individual level dynamics
         "indv_NType":       2,
-        "indv_cost":        0.01,  # cost of cooperation
+        "indv_cost":        0.0005,  # cost of cooperation
         "indv_K":           50,  # total group size at EQ if f_coop=1
         "indv_mutationR":   1E-3,  # mutation rate to cheaters
+        "delta_indv":       0, # zero if death rate is simply 1/k, one if death rate decreases with group size
         # difference in growth rate b(j+1) = b(j) / asymmetry
-        "indv_asymmetry":    5,
+        "indv_asymmetry":   1,
         # setting for group rates
-        # fission rate = (1 + gr_Sfission * N)/gr_tau
-        'gr_Sfission':      0.,
-        # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
+        # fission rate
+        'gr_Sfission':      0,
+        'Nmin':             0., # fission rate is zero below Nmin
+        'group_offset':     1., # fission rate is linear with slope gr_Sfission and intercept "offset" above Nmin
+        # extinction rate
         'gr_Sextinct':      0.,
-        'gr_K':             20,   # carrying capacity of groups
+        'gr_K':             1000,   # carrying capacity of groups
         'gr_tau':           100,   # relative rate individual and group events
+        'delta_group':      0., 
         # settings for fissioning
-        'offspr_size':      0.5,  # offspr_size <= 0.5 and
+        'offspr_size':      0.125,  # offspr_size <= 0.5 and
         'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
-
     }
-
     output, distFCoop, distGrSize = run_model(model_par)

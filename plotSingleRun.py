@@ -123,7 +123,7 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
     plot_heatmap(fig, axs, distFCoop, 'coop. freq.', type='lin')
 
     # set figure size
-    fig.set_size_inches(6, 6)
+    fig.set_size_inches(4, 6)
     plt.tight_layout()  # cleans up figure and aligns things nicely
 
     return None

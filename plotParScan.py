@@ -24,13 +24,19 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'scanFissionModes_cost5e-02_mu1e-02_tau100_interact0_dr1e-03_grK5e+03_sFis0e+00_sExt0e+00'
+fileName = 'scan2D_Jan20_NSpecies2_Assym1_cost0.01_mu0.01_tau100_indvK5e+01_grK1e+02_sFis1_sExt0_Nmin0_offset1_deltaind1_deltagr0.npz'
+
+#data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
+data_folder = Path(".")
+fig_Folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/January2020")
+
+
 
 """============================================================================
 Set figure options 
 ============================================================================"""
 
-font = {'family': 'Helvetica',
+font = {'family': 'Arial',
         'weight': 'light',
         'size': 6}
 
@@ -73,11 +79,12 @@ Define functions
 
 
 def make_fig(fileName):
+    
+    #remove extension if needed
+    if fileName[-4:] == '.npz':
+        fileName = fileName[:-4]
 
     #set folders of data
-    data_folder = Path(str(Path.home())+"/ownCloud/MLS_GroupDynamics_shared/Data/")
-    fig_Folder = Path(str(Path.home()) +
-                      "/ownCloud/MLS_GroupDynamics_shared/Figures/")
     figureName = fig_Folder / (fileName + '.pdf')
     
     #load data
