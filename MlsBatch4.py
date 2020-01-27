@@ -1,26 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 18 2019
+Created on Tue Jan 21 16:58:05 2020
 
-Last Update Oct 22 2019
-
-@author: Simon van Vliet & Gil Henriques
-Department of Zoology
-University of Britisch Columbia
+@author: simonvanvliet
 vanvliet@zoology.ubc.ca
-henriques@zoology.ubc.ca
+"""
 
-============================================================================
-Run Model and plot results
-============================================================================"""
+import MlsGroupDynamics_scanParSpace as mls
+import numpy as np
 
-#load code
-import MlsGroupDynamics_main as mls
-import plotSingleRun as pltRun
-import time
-
-#set model parameters
 model_par = {
         #time and run settings
         "maxT":             10000,  # total run time
@@ -61,17 +50,42 @@ model_par = {
     }
 
 
-#run model
+mainName = 'scan2D_Jan23Mut2'
 
-# run code
-start = time.time()
-output, distFCoop, distGrSize = mls.run_model(model_par)
-pltRun.plot_single_run(model_par, output, distFCoop, distGrSize)
-
-end = time.time()
-
-# print timing
-print("Elapsed time run 1 = %s" % (end - start))
+deltaIndv_Vec = np.array([1,0])
+delta_group_Vec = np.array([0])
+mu_Vec = np.array([1E-4, 1E-3, 1E-2, 5E-2])
 
 
+def set_model_par(settings):
+    model_par_local = model_par.copy()
+    for key, val in settings.items():
+        model_par_local[key] = val
+    return model_par_local
+
+def run_batch():
+    for delta_group in delta_group_Vec:
+        for deltaIndv in deltaIndv_Vec:
+            for mu in mu_Vec:
+                
+                if delta_group==0:
+                    dTot = 1
+                    dGrp = 0
+                else:
+                    dTot= 0
+                    dGrp = 1
+               
+                    
+                settings = {'delta_indv': deltaIndv, 'delta_tot' : dTot, 'delta_group' : dGrp,
+                            'indv_mutationR' : mu}
+                
+                modelParCur = set_model_par(settings)
+                _ = mls.load_or_run_model(mainName, modelParCur)
+        
+    return None
+
+#run parscan and make figure
+if __name__ == "__main__":
+    run_batch()
+    
 

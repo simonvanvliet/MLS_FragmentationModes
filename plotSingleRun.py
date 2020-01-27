@@ -113,14 +113,30 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
     plot_data(output, "rms_err_NGroup",type='log')
     plt.legend()
     plt.ylabel("rms error")
+    
+    
+     # plot fraction of coop
+    plt.subplot(nR, nC, 5)
+    plot_data(output, "groupSizeAv")
+    plot_data(output, "groupSizeAv_mav")
+    plt.ylabel("mean group size")
+    plt.legend()
 
-    #plot distribution group size
-    axs = plt.subplot(nR, nC, 5)
-    plot_heatmap(fig, axs, distGrSize, 'group size', type='lin')
+    # plot rms error
+    plt.subplot(nR, nC, 6)
+    plot_data(output, "groupSizeMed")
+    plot_data(output, "groupSizeMed_mav")
+    plt.legend()
+    plt.ylabel("median group size")
+    
 
-    #plot distribution fraction coop
-    axs = plt.subplot(nR, nC, 6)
-    plot_heatmap(fig, axs, distFCoop, 'coop. freq.', type='lin')
+#    #plot distribution group size
+#    axs = plt.subplot(nR, nC, 5)
+#    plot_heatmap(fig, axs, distGrSize, 'group size', type='lin')
+#
+#    #plot distribution fraction coop
+#    axs = plt.subplot(nR, nC, 6)
+#    plot_heatmap(fig, axs, distFCoop, 'coop. freq.', type='lin')
 
     # set figure size
     fig.set_size_inches(4, 6)

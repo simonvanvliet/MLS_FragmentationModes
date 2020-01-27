@@ -327,8 +327,8 @@ def remove_group(groupMat, groupDeathID):
 
 
 # calculate fission and extinction rate of all groups
-@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8[::1], f8[::1], f8, f8, f8), nopython=True)
-def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecType, oneVecGroup, delta_group, Nmin, group_offset):
+@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8, f8, f8, f8, f8[::1], f8[::1]), nopython=True)
+def calc_group_rates(groupMat, group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size, oneVecType, oneVecGroup):
     # calc total number of individuals per group, use matrix product for speed
     Ntot_group = oneVecType @ groupMat
 
@@ -336,17 +336,25 @@ def calc_group_rates(groupMat, group_Sfission, group_Sextinct, group_K, oneVecTy
     Ntot = oneVecGroup @ Ntot_group
 
     # calc fission rate
-    fissionR = Ntot_group * group_Sfission + oneVecGroup * group_offset #first assign all groups a rate
-    if Nmin > 0:
-        fissionR[Ntot_group < Nmin] = 0 #set rate to zero for small groups
-
+    fissionR = Ntot_group * group_Sfission + group_Cfission
+  
     # calc extinction rate
-    #groupDeathRate = Ntot * oneVecGroup.size / group_K
-    groupDeathRate = Ntot / group_K
     if delta_group != 0:
-        extinctR = groupDeathRate * (1/Ntot_group)**delta_group
+        groupDep = (oneVecGroup.size / K_group)**delta_group
     else:
-        extinctR = oneVecGroup * groupDeathRate
+        groupDep = 1
+        
+    if delta_tot != 0:
+        popDep = (Ntot / K_tot)**delta_tot
+    else:
+        popDep = 1    
+
+    if delta_size != 0:
+        sizeEffect = (1/Ntot_group)**delta_size
+        #sizeEffect = sizeEffect /  (oneVecGroup @ sizeEffect)
+        extinctR = groupDep * popDep * sizeEffect
+    else:
+        extinctR = groupDep * popDep * oneVecGroup
 
     # combine all rates in single vector
     rates = np.concatenate((fissionR, extinctR))
@@ -478,6 +486,9 @@ def run_model(model_par):
     else:
         minTRun = rmsInt + 1
         
+        
+    maxPopSize = model_par['maxPopSize']
+        
     # initialize group matrix
     groupMat = init_groupMat(model_par)
 
@@ -498,12 +509,10 @@ def run_model(model_par):
     oneVecType = np.ones(2 * numType)
 
     # get model rates
-    indv_K, indv_cost, indv_mutationR, indv_asymmetry = [float(model_par[x])
-                                                         for x in ('indv_K', 'indv_cost', 'indv_mutationR', 'indv_asymmetry')]
-    delta_indv = float(model_par['delta_indv'])
-    delta_group = float(model_par['delta_group'])
-    Nmin = float(model_par['Nmin'])
-    group_offset = float(model_par['group_offset'])    
+    indv_K, indv_cost, indv_mutationR, indv_asymmetry, delta_indv = \
+        [float(model_par[x]) for x in ('indv_K', 'indv_cost', 'indv_mutationR', \
+         'indv_asymmetry', 'delta_indv')]
+   
     
     #calc birth rates to keep constant EQ group size when all cells are cooperators
     bVecCoop = 1 / indv_asymmetry**(np.arange(numType))
@@ -514,8 +523,9 @@ def run_model(model_par):
     indv_deathR = 1 / indv_K
 
     #get group rates
-    gr_Sfission, gr_Sextinct, gr_K, gr_tau = [float(model_par[x])
-                                              for x in ('gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau')]
+    group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size = [float(model_par[x])
+                                              for x in ('gr_Cfission','gr_Sfission', 'K_group', 'K_tot', 
+                                                        'delta_group', 'delta_tot', 'delta_size')]
 
     offspr_size, offspr_frac = [float(model_par[x])
                                 for x in ('offspr_size', 'offspr_frac')]
@@ -547,16 +557,18 @@ def run_model(model_par):
 
         # calc rates of individual level events
         calc_indv_rates(indvRates, groupMat, bVec,
-                                    indv_deathR, oneVecType, oneVecGroup, delta_indv)
-
+                                    indv_deathR, oneVecType, oneVecGroup, delta_indv)       
+        
+        
         # calc rates of group events
         groupRates = calc_group_rates(groupMat,
-                                      gr_Sfission, gr_Sextinct, gr_K, oneVecType, oneVecGroup,
-                                      delta_group, Nmin, group_offset)
+                                      group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size,
+                                      oneVecType, oneVecGroup)
 
         # calculate total propensities
         indvProp = oneVecIndvR @ indvRates
-        groupProp = (oneVecGrR @ groupRates) / gr_tau
+        # !!CHANGE!! removed ... / gr_tau
+        groupProp = (oneVecGrR @ groupRates)
         totProp = indvProp + groupProp
 
         # calc time step
@@ -616,6 +628,10 @@ def run_model(model_par):
 
                 if NCoopStable and NGroupStable:
                     break
+                
+            # check if population size remains in bounds
+            if output['NTot'][sampleIdx - 1] > maxPopSize:
+                break
 
     # cut off non existing time points at end
     output = output[0:sampleIdx]
@@ -643,11 +659,12 @@ def single_run_finalstate(model_par):
     output, distFCoop, distGrSize = run_model(model_par)    
     end = time.time()
 
+ 
     #input parameters to store
-    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry',
-               'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
-               'offspr_size', 'offspr_frac', 'Nmin', 'group_offset', 'delta_indv', 'delta_group']
-
+    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry', 'delta_indv',
+               'gr_Sfission', 'gr_Cfission', 'K_group', 'K_tot', 'delta_group', 'delta_tot', 'delta_size',
+               'offspr_size','offspr_frac']
+                                                        
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
         ['N%imut' % x for x in range(model_par['indv_NType'])]
@@ -683,38 +700,48 @@ if __name__ == "__main__":
     print("running with default parameter")
 
     model_par = {
-        "maxT":             10000,  # total run time
-        "minT":             250,   # min run time
-        "sampleInt":        1,     # sampling interval
-        "mav_window":       200,   # average over this time window
-        "rms_window":       200,   # calc rms change over this time window
-        "rms_err_trNCoop":  2E-2,  # when to stop calculations
-        "rms_err_trNGr":    1E-1,  # when to stop calculations
+        #        #time and run settings
+#        "maxT":             400,  # total run time
+#        "minT":             250,    # min run time
+#        "sampleInt":        1,      # sampling interval
+#        "mav_window":       400,    # average over this time window
+#        "rms_window":       400,    # calc rms change over this time window
+#        "rms_err_trNCoop":  1E-1,   # when to stop calculations
+#        "rms_err_trNGr":    5E-1,   # when to stop calculations
+         #time and run settings
+        "maxT":             50,  # total run time
+        "maxPopSize":       10000,  #stop simulation if population exceeds this number
+        "minT":             1,    # min run time
+        "sampleInt":        1,      # sampling interval
+        "mav_window":       10,    # average over this time window
+        "rms_window":       10,    # calc rms change over this time window
+        "rms_err_trNCoop":  1E-51,   # when to stop calculations
+        "rms_err_trNGr":    5E-51,   # when to stop calculations
         # settings for initial condition
-        "init_groupNum":    20,  # initial # groups
-        # initial composition of groups (fractions)
+        "init_groupNum":    10,     # initial # groups
         "init_fCoop":       1,
-        "init_groupDens":   50,  # initial total cell number in group
+        "init_groupDens":   10,     # initial total cell number in group
         # settings for individual level dynamics
+        # complexity
         "indv_NType":       2,
-        "indv_cost":        0.0005,  # cost of cooperation
-        "indv_K":           50,  # total group size at EQ if f_coop=1
-        "indv_mutationR":   1E-3,  # mutation rate to cheaters
-        "delta_indv":       0, # zero if death rate is simply 1/k, one if death rate decreases with group size
-        # difference in growth rate b(j+1) = b(j) / asymmetry
-        "indv_asymmetry":   1,
+        "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
+        # mutation load
+        "indv_cost":        0.001,  # cost of cooperation
+        "indv_mutationR":   1E-3,   # mutation rate to cheaters
+        # group size control
+        "indv_K":           10,     # total group size at EQ if f_coop=1
+        "delta_indv":       0,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_Sfission':      0,
-        'Nmin':             0., # fission rate is zero below Nmin
-        'group_offset':     1., # fission rate is linear with slope gr_Sfission and intercept "offset" above Nmin
+        'gr_Sfission':      1/10,
         # extinction rate
-        'gr_Sextinct':      0.,
-        'gr_K':             1000,   # carrying capacity of groups
-        'gr_tau':           100,   # relative rate individual and group events
-        'delta_group':      0., 
+        'delta_group':      1,      # exponent of denisty dependence on group #
+        'K_group':          10,    # carrying capacity of groups
+        'delta_tot':        0,      # exponent of denisty dependence on total #indvidual
+        'K_tot':            0,   # carrying capacity of total individuals
+        'delta_size':       1,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
+        'offspr_frac': 0.5  # offspr_size < offspr_frac < 1-offspr_size'
     }
     output, distFCoop, distGrSize = run_model(model_par)

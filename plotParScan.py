@@ -28,7 +28,7 @@ fileName = 'scan2D_Jan20_NSpecies2_Assym1_cost0.01_mu0.01_tau100_indvK5e+01_grK1
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 data_folder = Path(".")
-fig_Folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/January2020")
+fig_Folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Jan22_2020")
 
 
 
@@ -78,17 +78,17 @@ Define functions
 ============================================================================"""
 
 
-def make_fig(fileName):
+def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     
     #remove extension if needed
     if fileName[-4:] == '.npz':
         fileName = fileName[:-4]
 
     #set folders of data
-    figureName = fig_Folder / (fileName + '.pdf')
+    figureName = pathSave / (fileName + '.pdf')
     
     #load data
-    loadName = data_folder / (fileName + '.npz')
+    loadName = pathLoad / (fileName + '.npz')
     data_file = np.load(loadName, allow_pickle=True)
     statData = data_file['statData']
     offspr_fracVec = data_file['offspr_fracVec']
@@ -116,12 +116,12 @@ def make_fig(fileName):
     #plot total cell density
     ax = plt.subplot(nR, nC, 1)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NTot_mav', 1E3)
+                        offspr_fracVec, statData, 'NTot_mav', 100)
     
     #plot Cooperator density
     ax = plt.subplot(nR, nC, 2)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NCoop_mav', 1E3)
+                        offspr_fracVec, statData, 'NCoop_mav', 100)
     
     #plot cooperator fraction
     ax = plt.subplot(nR, nC, 3)
@@ -131,17 +131,17 @@ def make_fig(fileName):
     #plot number of groups
     ax = plt.subplot(nR, nC, 4)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NGroup_mav', 10)
+                        offspr_fracVec, statData, 'NGroup_mav', 5)
     
     #plot mean group size
     ax = plt.subplot(nR, nC, 5)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'groupSizeAv_mav', 10)
+                        offspr_fracVec, statData, 'groupSizeAv_mav', 5)
     
     #plot median group size
     ax = plt.subplot(nR, nC, 6)
     pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'groupSizeMed_mav', 10)
+                        offspr_fracVec, statData, 'groupSizeMed_mav', 5)
     
     #clean up figure
     plt.tight_layout() 
