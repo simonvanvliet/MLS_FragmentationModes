@@ -104,7 +104,9 @@ parNameAbbrev = {
                 'indv_mutationR': 'mutR', 
                 'indv_K'        : 'kInd', 
                 'K_group'       : 'kGrp', 
-                'K_tot'         : 'kTot'}
+                'K_tot'         : 'kTot',
+                'model_mode'    : 'mode',
+                'slope_coef'    : 'sCof'}
 
 
 
@@ -115,11 +117,11 @@ Define functions
 
 
 def create_data_name(mainName, model_par):
-    parListName = ['delta_indv','delta_group','delta_tot','delta_size',
-                   'gr_Cfission','gr_Sfission',
+    parListName = ['model_mode','indv_cost', 'indv_mutationR',
+                   'indv_K', 'K_group', 'K_tot',
                    'indv_NType', 'indv_asymmetry',
-                   'indv_cost', 'indv_mutationR', 
-                   'indv_K', 'K_group', 'K_tot']
+                   'delta_indv','delta_group','delta_tot','delta_size',
+                   'gr_Cfission','gr_Sfission']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)

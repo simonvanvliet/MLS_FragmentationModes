@@ -40,10 +40,10 @@ model_par = {
         "indv_NType":       2,
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
-        "indv_cost":        0.05,  # cost of cooperation
+        "indv_cost":        0.01,  # cost of cooperation
         "indv_mutationR":   1E-3,   # mutation rate to cheaters
         # group size control
-        "indv_K":           50,     # total group size at EQ if f_coop=1
+        "indv_K":           100,     # total group size at EQ if f_coop=1
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
@@ -51,20 +51,66 @@ model_par = {
         'gr_Cfission':      1/100,
         # extinction rate
         'delta_group':      0,      # exponent of denisty dependence on group #
-        'K_group':          1000,    # carrying capacity of groups
+        'K_group':          100,    # carrying capacity of groups
         'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            20000,   # carrying capacity of total individuals
+        'K_tot':            75000,   # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
-        'offspr_size':      0.125,  # offspr_size <= 0.5 and
+        'offspr_size':      0.4,  # offspr_size <= 0.5 and
         'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
     }
+
+
+model_mode = 1
+K_group_def = 1000
+K_tot_def = 60000
+K_indv_def = 100
+
+def set_model_mode(model_par, mode):
+    model_par['delta_size'] = 0
+    model_par['model_mode'] = mode
+    
+    if mode == 0:
+        model_par['delta_group'] = 1
+        model_par['delta_tot'] = 0
+        model_par['delta_indv'] = 1
+        model_par['gr_Sfission'] = 0
+        model_par['K_group'] = K_group_def       
+        model_par['K_tot'] = 0
+    elif mode == 1:
+        model_par['delta_group'] = 1
+        model_par['delta_tot'] = 0     
+        model_par['delta_indv'] = 0
+        model_par['gr_Sfission'] = 1 / K_indv_def
+        model_par['K_group'] = K_group_def / 12        
+        model_par['K_tot'] = 0
+    elif mode == 2:
+        model_par['delta_group'] = 0
+        model_par['delta_tot'] = 1
+        model_par['delta_indv'] = 1
+        model_par['gr_Sfission'] = 0
+        model_par['K_tot'] = K_tot_def       
+        model_par['K_group'] = 0
+    elif mode == 3:
+        model_par['delta_group'] = 0
+        model_par['delta_tot'] = 1     
+        model_par['delta_indv'] = 0
+        model_par['gr_Sfission'] = 1 / K_indv_def
+        model_par['K_tot'] = K_tot_def / 12        
+        model_par['K_group'] = 0       
+    else:
+        print('unkown model_mode, choose from [0:3]')
+        raise ValueError
+   
+    return None
+
 
 
 #run model
 
 # run code
 start = time.time()
+set_model_mode(model_par, model_mode)
 output, distFCoop, distGrSize = mls.run_model(model_par)
 pltRun.plot_single_run(model_par, output, distFCoop, distGrSize)
 

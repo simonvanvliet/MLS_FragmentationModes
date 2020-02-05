@@ -10,10 +10,21 @@ vanvliet@zoology.ubc.ca
 import MlsGroupDynamics_scanParSpace as mls
 import numpy as np
 
+mainName = 'scan2D_Jan27'
+
+model_mode_Vec = np.arange(4)
+cost_Vec = np.array([0.01])
+Kindv_Vec = np.array([100])
+mu_Vec = np.array([1E-3])
+slope_coef_Vec = np.array([0.5, 1, 2])
+
+K_group_def = 1500
+K_tot_def = 90000
+
 model_par = {
         #time and run settings
         "maxT":             10000,  # total run time
-        "maxPopSize":       10000,  #stop simulation if population exceeds this number
+        "maxPopSize":       30000,  #stop simulation if population exceeds this number
         "minT":             250,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       400,    # average over this time window
@@ -32,17 +43,19 @@ model_par = {
         "indv_cost":        0.1,  # cost of cooperation
         "indv_mutationR":   1E-3,   # mutation rate to cheaters
         # group size control
-        "indv_K":           50,     # total group size at EQ if f_coop=1
+        "indv_K":           0,     # total group size at EQ if f_coop=1
         "delta_indv":       0,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
+        'model_mode':       0,
         # fission rate
-        'gr_Sfission':      1/40,
-        'gr_Cfission':      0,
+        'slope_coef':       1,
+        'gr_Sfission':      0,
+        'gr_Cfission':      1/100,
         # extinction rate
-        'delta_group':      1,      # exponent of denisty dependence on group #
-        'K_group':          1000,    # carrying capacity of groups
+        'delta_group':      0,      # exponent of denisty dependence on group #
+        'K_group':          K_group_def,    # carrying capacity of groups
         'delta_tot':        0,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            4000,   # carrying capacity of total individuals
+        'K_tot':            K_tot_def,   # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
@@ -50,46 +63,67 @@ model_par = {
     }
 
 
-
-mainName = 'scan2D_Jan22Alt'
-
-deltaIndv_Vec = np.array([0, 1])
-delta_group_Vec = np.array([0, 1])
-fissionSlope_Vec = np.array([0, 1/50])
-mu_Vec = np.array([1E-3, 5E-2])
-
-
+def set_model_mode(model_par, mode, K_indv, slope_coef):
+    model_par['delta_size'] = 0
+    model_par['model_mode'] = mode
+    
+    if mode == 0:
+        model_par['delta_group'] = 1
+        model_par['delta_tot'] = 0
+        model_par['delta_indv'] = 1
+        model_par['gr_Sfission'] = 0
+        model_par['K_group'] = K_group_def       
+        model_par['K_tot'] = 0
+    elif mode == 1:
+        model_par['delta_group'] = 1
+        model_par['delta_tot'] = 0     
+        model_par['delta_indv'] = 0
+        model_par['gr_Sfission'] = slope_coef / K_indv
+        model_par['K_group'] = K_group_def / 12        
+        model_par['K_tot'] = 0
+    elif mode == 2:
+        model_par['delta_group'] = 0
+        model_par['delta_tot'] = 1
+        model_par['delta_indv'] = 1
+        model_par['gr_Sfission'] = 0
+        model_par['K_tot'] = K_tot_def       
+        model_par['K_group'] = 0
+    elif mode == 3:
+        model_par['delta_group'] = 0
+        model_par['delta_tot'] = 1     
+        model_par['delta_indv'] = 0
+        model_par['gr_Sfission'] = slope_coef / K_indv
+        model_par['K_tot'] = K_tot_def / 12        
+        model_par['K_group'] = 0       
+    else:
+        print('unkown model_mode, choose from [0:3]')
+        raise ValueError
+   
+    return None
+        
+    
 def set_model_par(settings):
     model_par_local = model_par.copy()
+    set_model_mode(model_par_local, settings['model_mode'], settings['indv_K'], settings['slope_coef'])
     for key, val in settings.items():
         model_par_local[key] = val
     return model_par_local
 
 def run_batch():
-    for delta_group in delta_group_Vec:
-        for deltaIndv in deltaIndv_Vec:
-            for fissionSlope in fissionSlope_Vec:
+    for model_mode in model_mode_Vec:
+        for cost in cost_Vec:
+            for Kindv in Kindv_Vec:
                 for mu in mu_Vec:
-                
-                    if delta_group==0:
-                        dTot = 1
-                        dGrp = 0
-                    else:
-                        dTot= 0
-                        dGrp = 1
-                        
-                    if fissionSlope==0:
-                        fissC = 1
-                    else:
-                        fissC = 0
-                        
-                        
-                    settings = {'delta_indv': deltaIndv, 'delta_tot' : dTot, 'delta_group' : dGrp,
-                                'gr_Sfission' : fissionSlope, 'gr_Cfission': fissC,
-                                'indv_mutationR' : mu}
+                    for slope_coef in slope_coef_Vec:
                     
-                    modelParCur = set_model_par(settings)
-                    _ = mls.load_or_run_model(mainName, modelParCur)
+                        settings = {'model_mode': model_mode, 
+                                    'indv_cost' : cost, 
+                                    'indv_mutationR' : mu,
+                                    'indv_K' : Kindv,
+                                    'slope_coef' : slope_coef}
+                        
+                        modelParCur = set_model_par(settings)
+                        _ = mls.load_or_run_model(mainName, modelParCur)
             
     return None
 

@@ -13,6 +13,7 @@ Contains varies functions used in MLS model code and in figure code
 """
 import numpy as np
 import math
+import matplotlib
 
 # %% Set figure size in cm
 def set_fig_size_cm(fig, w, h):
@@ -56,6 +57,11 @@ def plot_heatmap(fig, ax, offspr_sizeVec, offspr_fracVec, statData, dataName, ro
     #plot heatmap
     im = ax.pcolormesh(offspr_sizeVec, offspr_fracVec, data2D,
                        cmap='plasma', vmin=0, vmax=maxData)
+    
+    current_cmap = matplotlib.cm.get_cmap()
+    current_cmap.set_bad(color='black')
+
+
     #add colorbar
     fig.colorbar(im, ax=ax, orientation='horizontal',
                  label=dataName,

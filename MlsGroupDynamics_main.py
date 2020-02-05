@@ -179,6 +179,35 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     sample_idx += 1
     return sample_idx
 
+# sample model
+def sample_nan(groupMatrix, output, distFCoop, binFCoop,
+                 distGrSize, binGrSize, sample_idx, currT, mavInt, rmsInt, stateVarPlus):
+    # store time
+    output['time'][sample_idx] = currT
+
+    # calc number of groups
+    shapeGroupMat= groupMatrix.shape
+    NType = int(shapeGroupMat[0] / 2)
+
+    # calc total population sizes
+    for tt in range(NType):
+        output['N%i' %tt][sample_idx] = np.nan
+        output['N%imut' %tt][sample_idx] = np.nan
+       
+    output['NTot'][sample_idx] = np.nan
+    output['NCoop'][sample_idx] = np.nan
+    output['fCoop'][sample_idx] = np.nan
+    
+    output['NGroup'][sample_idx] = np.nan
+    output['groupSizeAv'][sample_idx] = np.nan
+    output['groupSizeMed'][sample_idx] = np.nan
+
+    #calc moving average 
+    for varname in stateVarPlus:
+        outname = varname + '_mav'
+        output[outname][sample_idx] = np.nan
+
+    return None
 
 # sample model
 def sample_extinction(output, distFCoop, binFCoop,
@@ -631,6 +660,9 @@ def run_model(model_par):
                 
             # check if population size remains in bounds
             if output['NTot'][sampleIdx - 1] > maxPopSize:
+                sample_nan(groupMat, output, distFCoop, binFCoop,
+                                     distGrSize, binGrSize, sampleIdx - 1, currT, mavInt, rmsInt, stateVarPlus)
+                                
                 break
 
     # cut off non existing time points at end
