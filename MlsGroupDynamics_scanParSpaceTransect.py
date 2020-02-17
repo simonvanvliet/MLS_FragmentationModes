@@ -22,79 +22,127 @@ import MlsGroupDynamics_main as mls
 import datetime
 from joblib import Parallel, delayed, parallel_backend
 import numpy as np
-import os
+from pathlib import Path
+ 
 
 """============================================================================
 Define parameters
 ============================================================================"""
 
 override_data = True #set to true to force re-calculation
-numCore = 20 #number of cores to run code on
-numThread = 2 #number o threads per core
+numCore = 40 #number of cores to run code on
+numThread = 1 #number o threads per core
 #where to store output?
-mainName = 'vanVliet_scan'
+
+data_folder = Path(".")
+mainName = 'transact_Feb10'
+
 
 #setup variables to scan
-offspr_sizeVec = np.arange(0.01, 0.5, 0.01)
-mu_vec = np.array([1e-4, 1e-3, 1e-2])
+offspr_sizeVec = np.arange(0.01, 0.5001, 0.01)
+mu_vec = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1])
 type_vec = np.arange(1,5)
-tau_vec = np.array([10, 100, 1000])
-assymetry_vec = np.array([1, 2, 4])
+slope_vec = np.linspace(0,0.5,11)
+
+K_tot_def = 20000
 
 #set other parameters
 model_par = {
-    # solver settings
-    "maxT":             3000,  # total run time
-    "minT":             400,   # min run time
-    "sampleInt":        1,     # sampling interval
-    "mav_window":       200,   # average over this time window
-    "rms_window":       200,   # calc rms change over this time window
-    "rms_err_trNCoop":  2E-2,  # when to stop calculations
-    "rms_err_trNGr":    0.1,  # when to stop calculations
-    # settings for initial condition
-    "init_groupNum":    100,  # initial # groups
-    # initial composition of groups (fractions)
-    "init_fCoop":       1,
-    "init_groupDens":   100,  # initial total cell number in group  
-    # settings for individual level dynamics
-    "indv_NType":       1,
-    "indv_cost":        0.1,  # cost of cooperation
-    "indv_K":           100,  # total group size at EQ if f_coop=1
-    "indv_mutationR":   1E-3,  # mutation rate to cheaters
-    # difference in growth rate b(j+1) = b(j) / asymmetry
-    "indv_asymmetry":    1,
-    # setting for group rates
-    'gr_Sfission':       0.,    # fission rate = (1 + gr_Sfission * N)/gr_tau
-    'gr_Sextinct':      0.,    # extinction rate = (1 + gr_Sextinct * N)*gr_K/gr_tau
-    'gr_K':             100,   # total carrying capacity of cells
-    'gr_tau':           100,   # relative rate individual and group events
-    # settings for fissioning
-    'offspr_size':      0.5,  # offspr_size <= 0.5 and
-    'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
-}
-
-#setup name to save files
-parName = '_cost%.0g_indvK%.0e_grK%.0g_sFis%.0g_sExt%.0g' % (
-    model_par['indv_cost'], 
-    model_par['indv_K'], model_par['gr_K'],
-    model_par['gr_Sfission'], model_par['gr_Sextinct'])
-dataFileName = mainName + parName 
+        #time and run settings
+        "maxT":             10000,  # total run time
+        "maxPopSize":       30000,  #stop simulation if population exceeds this number
+        "minT":             200,    # min run time
+        "sampleInt":        1,      # sampling interval
+        "mav_window":       400,    # average over this time window
+        "rms_window":       400,    # calc rms change over this time window
+        "rms_err_trNCoop":  1E-1,   # when to stop calculations
+        "rms_err_trNGr":    5E-1,   # when to stop calculations
+        # settings for initial condition
+        "init_groupNum":    10,     # initial # groups
+        "init_fCoop":       1,
+        "init_groupDens":   10,     # initial total cell number in group
+        # settings for individual level dynamics
+        # complexity
+        "indv_NType":       2,
+        "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
+        # mutation load
+        "indv_cost":        0.01,  # cost of cooperation
+        "indv_mutR":        1E-3,   # mutation rate to cheaters
+        "indv_migrR":       0,   # mutation rate to cheaters
+        # group size control
+        "indv_K":           100,     # total group size at EQ if f_coop=1
+        "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
+        # setting for group rates
+        # fission rate
+        'gr_Cfission':      1/100,
+        'gr_Sfission':      1/50,
+        # extinction rate
+        'delta_grp':        0,      # exponent of denisty dependence on group #
+        'K_grp':            0,    # carrying capacity of groups
+        'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
+        'K_tot':            K_tot_def,   # carrying capacity of total individuals
+        'delta_size':       0,      # exponent of size dependence
+        # settings for fissioning
+        'offspr_size':      0.125,  # offspr_size <= 0.5 and
+        'offspr_frac':      0.8  # offspr_size < offspr_frac < 1-offspr_size'
+    }
 
 
 """============================================================================
 Define functions
 ============================================================================"""
+
+
+parNameAbbrev = {
+                'delta_indv'    : 'dInd',
+                'delta_grp'     : 'dGrp',
+                'delta_tot'     : 'dTot',
+                'delta_size'    : 'dSiz',
+                'gr_Cfission'   : 'fisC',
+                'gr_Sfission'   : 'fisS',
+                'indv_NType'    : 'nTyp', 
+                'indv_asymmetry': 'asym',
+                'indv_cost'     : 'cost', 
+                'indv_mutR'     : 'mutR', 
+                'indv_migrR'    : 'migR', 
+                'indv_K'        : 'kInd', 
+                'K_grp'         : 'kGrp', 
+                'K_tot'         : 'kTot',
+                'model_mode'    : 'mode',
+                'slope_coef'    : 'sCof'}
+
+
+def create_data_name(mainName, model_par):
+    parListName = ['indv_cost', 'indv_migrR',
+                   'indv_K', 'K_grp', 'K_tot',
+                   'indv_asymmetry',
+                   'delta_indv','delta_grp','delta_tot','delta_size',
+                   'gr_Cfission']
+
+    parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
+    parName = ''.join(parName)
+    dataFileName = mainName + parName 
+        
+    
+    return dataFileName
+
+
 #set model parameters for fission mode
-def set_fission_mode(offspr_size, indv_NType, indv_mutationR, indv_asymmetry, gr_tau):
+def set_fission_mode(offspr_size, indv_NType, indv_mutationR, Sfission):
     #copy model par (needed because otherwise it is changed in place)
     offspr_frac = 1 - offspr_size
+    if Sfission == 0:
+        K_tot = K_tot_def * 5
+    else:
+        K_tot = K_tot_def
+
     model_par_local = model_par.copy()
     model_par_local['offspr_size'] = offspr_size
+    model_par_local['K_tot'] = K_tot
     model_par_local['offspr_frac'] = offspr_frac
     model_par_local['indv_NType'] = indv_NType
     model_par_local['indv_mutationR'] = indv_mutationR
-    model_par_local['indv_asymmetry'] = indv_asymmetry
-    model_par_local['gr_tau'] = gr_tau
+    model_par_local['gr_Sfission'] = Sfission
 
     return model_par_local
 
@@ -104,9 +152,8 @@ def run_model():
     # *x unpacks variables stored in tuple x e.g. if x = (a1,a2,a3) than f(*x) = f(a1,a2,a3)
     # itertools.product creates all possible combination of parameters
     modelParList = [set_fission_mode(*x)
-                   for x in itertools.product(*(offspr_sizeVec, type_vec, mu_vec, assymetry_vec, tau_vec))]
+                    for x in itertools.product(*(offspr_sizeVec, type_vec, mu_vec, slope_vec))]
 
-    modelParList = modelParList[0:4]
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
@@ -114,13 +161,16 @@ def run_model():
     with parallel_backend("loky", inner_max_num_threads=numThread):
         results = Parallel(n_jobs=nJobs, verbose=10, timeout=1.E8)(
             delayed(mls.single_run_finalstate)(par) for par in modelParList)
+        
+        
+    dataFileName = create_data_name(mainName, model_par)
+    dataFilePath = data_folder / (dataFileName + '.npz')    
     
-    np.savez(dataFileName, results=results,
+    np.savez(dataFilePath, results=results,
              offspr_sizeVec = offspr_sizeVec,
              mu_vec = mu_vec,
              type_vec = type_vec,
-             tau_vec = tau_vec,
-             assymetry_vec = assymetry_vec,
+             slope_vec=slope_vec,
              modelParList = modelParList, date=datetime.datetime.now())
     
     return None

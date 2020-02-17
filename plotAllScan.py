@@ -12,14 +12,20 @@ import glob
 from pathlib import Path
 
 
-scanFiles = glob.glob('scan2D_Feb5Part1*')
+scanFiles = glob.glob('scan2D_Feb11Part1*')
 
 
 data_folder = Path(".")
-fig_Folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Feb5_Part1")
+
+fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Feb11Part1"
+fig_FolderPath = Path(fig_Folder)
 
 
+scanFigures = glob.glob(fig_Folder + "/scan2D*")
+recreate = True
 
 
-for file in scanFiles:
-    plot.make_fig(file, pathSave=fig_Folder, pathLoad=data_folder)
+for file in scanFiles:    
+    figName = fig_Folder + '/' + file[:-4] + ".pdf"
+    #if (not figName in scanFigures) | recreate:
+    plot.make_fig(file, pathSave=fig_FolderPath, pathLoad=data_folder)

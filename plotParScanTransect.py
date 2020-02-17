@@ -23,13 +23,15 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-#set name of file to load (withou extension)
+#set name of file to load
 fileName = 'vanVliet_scan_cost0.01_indvK1e+02_grK1e+02_sFis0_sExt0'
 
 #set Folder
-data_folder = Path("./Data/")
-fig_Folder = Path(str(Path.home()) +
-                      "/ownCloud/MLS_GroupDynamics_shared/Figures/")
+data_folder = Path(".")
+fig_Folder = Path(
+    "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Jan22_2020")
+
+
 
 """============================================================================
 Set figure options 
@@ -76,31 +78,32 @@ mpl.rc('savefig', **savefigure)
 Define functions
 ============================================================================"""
 
-def make_fig(fileName):
+
+def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     #set folders of data
+
+    #remove extension if needed
+    if fileName[-4:] == '.npz':
+        fileName = fileName[:-4]
     
-    figureName = fig_Folder / (fileName + '.pdf')
     
     #load data
-    loadName = data_folder / (fileName + '.npz')
+    loadName = pathLoad / (fileName + '.npz')
     data_file = np.load(loadName, allow_pickle=True)
     results = data_file['results']
-    offspr_sizeVec = data_file['offspr_sizeVec']
     type_vec = data_file['type_vec']
     mu_vec = data_file['mu_vec']
-    assymetry_vec = data_file['assymetry_vec']
-    tau_vec = data_file['tau_vec']
+    slope_vec = data_file['slope_vec']
     data_file.close()
     
-    
-    Output, endDistFCoop, endDistGrSize = zip(*results)
+    Output, _, _ = zip(*results)
     
     stateVar = ['NTot', 'NCoop', 'fCoop',
             'NGroup', 'groupSizeAv', 'groupSizeMed']
     
     #input parameters to store
-    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry',
-               'gr_Sfission', 'gr_Sextinct', 'gr_K', 'gr_tau',
+    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutR', 'indv_migrR', 'indv_asymmetry', 'delta_indv',
+               'gr_Sfission', 'gr_Cfission', 'K_grp', 'K_tot', 'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size', 'offspr_frac', 'run_time']
 
     # init output matrix
@@ -131,61 +134,56 @@ def make_fig(fileName):
     Make plot
     ============================================================================"""
 
-    #things that can be plotted:
+    #things that can be plorred:
     #    'NA', 'NAprime', 'NB', 'NBprime',
     #    'NTot', 'NCoop', 'fCoop',
     #    'NGroup', 'groupSizeAv', 'groupSizeMed'
     #add _mav to get moving average value    
-    
-    fig = plt.figure()
-    pltutl.set_fig_size_cm(fig, 60, 40)
-    
-    #plot variables
-    nC = type_vec.size * assymetry_vec.size
-    nR = tau_vec.size * 2
 
-    #loop over all variable parameters
-    for tt in range(type_vec.size):
-        for aa in range(assymetry_vec.size):
-            for cc in range(tau_vec.size):
-                index1 = cc * nC + tt * assymetry_vec.size + aa + 1
-                index2 = (cc+tau_vec.size) * nC + tt * assymetry_vec.size + aa + 1
+    parToPlot = ['NTot_mav', 'fCoop_mav', 'NGroup_mav']
+
+    for curPar in parToPlot:
     
+        fig = plt.figure()
+        pltutl.set_fig_size_cm(fig, 60, 40)
+        
+        #plot variables
+        nC = slope_vec.size
+        nR = type_vec.size
+
+        #loop over all variable parameters
+        for rr in range(type_vec.size):
+            for cc in range(slope_vec.size):
+                index1 = rr * nC + cc + 1
+
                 #create subplot for each combination of assymetry, # type, and tau
                 ax1 = plt.subplot(nR, nC, index1)
-                ax2 = plt.subplot(nR, nC, index2)
 
-                titleName = 'NType=%i, Assymetry=%.0g, tau=%.0g' % (type_vec[tt], assymetry_vec[aa], tau_vec[cc])
+                titleName = 'NType=%i, Sfis=%.0g' % (
+                    type_vec[rr], slope_vec[cc])
             
                 for mm in range(mu_vec.size):
                     #plot all different values of mu in same subplot
                     #set parameters for current curve to extract
                     keyDict = {
-                        'indv_NType': type_vec[tt],
-                        'indv_asymmetry': assymetry_vec[aa],
-                        'gr_tau': tau_vec[cc],
+                        'indv_NType': type_vec[rr],
+                        'gr_Sfission': slope_vec[cc],
                         'indv_mutationR': mu_vec[mm],
                     }
                     dataName = 'mu=%.0g' % mu_vec[mm]
                     #plot data
                     pltutl.plot_transect(
-                        fig, ax1, statData, 'offspr_size', 'NTot_mav', keyDict, dataName)
+                        fig, ax1, statData, 'offspr_size', curPar, keyDict, dataName)
                     ax1.set_title(titleName)
                     ax1.legend()
 
-                    pltutl.plot_transect(
-                        fig, ax2, statData, 'offspr_size', 'fCoop_mav', keyDict, dataName)
-
-                    ax2.set_title(titleName)
-                    ax2.legend()
-    
-    #clean up figure
-    plt.tight_layout() 
-    
-    #save figure
-    fig.savefig(figureName,
-                format="pdf", transparent=True)
-    
+        #clean up figure
+        plt.tight_layout() 
+        
+        #save figure
+        figureName = pathSave / (fileName + '_' + curPar + '.pdf')
+        fig.savefig(figureName,
+                    format="pdf", transparent=True)
     return None
 
 

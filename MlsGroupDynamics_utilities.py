@@ -28,10 +28,39 @@ ndtri_fn = functype(addr)
  General functions
 """
 
+@jit(UniTuple(i8,3)(i8, UniTuple(i8,3)), nopython=True)
+def flat_to_3d_index(flatIndex, shape):
+    """
+    converts flattend index to 3D indices for 'C' order arrays
+    warning: no error checking, only use if you are sure input is C array
+    """
+    nPlane = shape[1]*shape[2]
+    
+    idx0 = int(np.floor(flatIndex / nPlane))
+    idx12 = flatIndex % nPlane
+    
+    idx1 = int(np.floor(idx12 / shape[2]))
+    idx2 = int(idx12 % shape[2])
+    
+    return (idx0,idx1,idx2)
+
 
 # %%random sample based on propensity
 @jit(i8(f8[:], f8), nopython=True)
 def select_random_event(propensity_vec, randNum):
+   # calculate cumulative propensities
+    cumPropensity = propensity_vec.cumsum()
+    # rescale uniform random number [0,1] to total propensity
+    randNumScaled = randNum * cumPropensity[-1]
+    # create index vector
+    index = np.arange(cumPropensity.size)
+    # select group
+    id_group = index[(cumPropensity > randNumScaled)][0]
+    return id_group
+
+# %%random sample based on propensity
+@jit(i8(f8[:, :], f8), nopython=True)
+def select_random_event_2D(propensity_vec, randNum):
     # calculate cumulative propensities
     cumPropensity = propensity_vec.cumsum()
     # rescale uniform random number [0,1] to total propensity
@@ -40,8 +69,23 @@ def select_random_event(propensity_vec, randNum):
     index = np.arange(cumPropensity.size)
     # select group
     id_group = index[(cumPropensity > randNumScaled)][0]
-
     return id_group
+
+# %%random sample based on propensity
+@jit(i8(f8[:, :, :], f8), nopython=True)
+def select_random_event_3D(propensity_vec, randNum):
+    # calculate cumulative propensities
+    cumPropensity = propensity_vec.cumsum()
+    # rescale uniform random number [0,1] to total propensity
+    randNumScaled = randNum * cumPropensity[-1]
+    # create index vector
+    index = np.arange(cumPropensity.size)
+    # select group
+    id_group = index[(cumPropensity > randNumScaled)][0]
+    return id_group
+
+
+
 
 
 # %%create matrix with random numbers, excluding 0 and 1

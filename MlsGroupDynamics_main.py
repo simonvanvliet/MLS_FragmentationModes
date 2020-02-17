@@ -73,18 +73,18 @@ def init_output_matrix(model_par):
 # each column is a group and lists number of [A,A',B,B'] cells
 def init_groupMat(model_par):
     #get properties
-    numGroup = int(model_par["init_groupNum"])
-    numType = int(model_par['indv_NType'])
+    NGroup = int(model_par["init_groupNum"])
+    NType = int(model_par['indv_NType'])
 
     #create group composition vector
-    init_groupComp = np.zeros((numType*2, 1))
+    init_groupComp = np.zeros((NType*2, 1))
     nCoop = round(model_par["init_groupDens"] * model_par['init_fCoop'] / model_par['indv_NType'])
     nDef  = round(model_par["init_groupDens"] * (1 - model_par['init_fCoop']) / model_par['indv_NType'])
     init_groupComp[0::2] = nCoop
     init_groupComp[1::2] = nDef
 
     # init all groups with same composition
-    groupMat = init_groupComp @ np.ones((1, numGroup))
+    groupMat = init_groupComp @ np.ones((1, NGroup))
     # store in C-byte order
     groupMat = np.copy(groupMat, order='C')
 
@@ -98,33 +98,33 @@ Sample model code
 #create distribution
 @jit(f8[:](f8[:], f8[:]), nopython=True)
 def calc_distri(dataVec, binEdges):
-    numGroup = dataVec.size
+    NGroup = dataVec.size
     # get distribution of average cooperator fraction per host
     binCount, _ = np.histogram(dataVec, bins=binEdges)
-    distribution = binCount / numGroup
+    distribution = binCount / NGroup
     return distribution
 
 # calculate average cooperator fraction in total population
 @jit(Tuple((f8, f8, f8, f8, f8[:], f8[:], f8[:]))(f8[:, :]), nopython=True)
 def calc_cell_stat(groupMat):
     # calc total number of individuals per group, use matrix product for speed
-    Ntot_group = groupMat.sum(0)
+    grSizeVec = groupMat.sum(0)
     # calc total number of cooperators per group
     Ncoop_group = groupMat[0::2, :].sum(0)
     # calc fraction cooperators per group
-    fCoop_group = Ncoop_group / Ntot_group
+    fCoop_group = Ncoop_group / grSizeVec
 
     # calc total number cells per type
-    Ntot_type = groupMat.sum(1)
+    NTot_type = groupMat.sum(1)
     # calc total fraction cooperators
-    NTot = Ntot_type.sum()
-    NCoop = Ntot_type[0::2].sum()
+    NTot = NTot_type.sum()
+    NCoop = NTot_type[0::2].sum()
 
     #calc group statistics
-    groupSizeAv = Ntot_group.mean()
-    groupSizeMed = np.median(Ntot_group)
+    groupSizeAv = grSizeVec.mean()
+    groupSizeMed = np.median(grSizeVec)
 
-    return (NTot, NCoop, groupSizeAv, groupSizeMed, Ntot_type, fCoop_group, Ntot_group)
+    return (NTot, NCoop, groupSizeAv, groupSizeMed, NTot_type, fCoop_group, grSizeVec)
 
 
 # sample model
@@ -139,13 +139,13 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     NType = int(shapeGroupMat[0] / 2)
 
     # get group statistics
-    NTot, NCoop, groupSizeAv, groupSizeMed, Ntot_type, fCoop_group, Ntot_group = calc_cell_stat(
+    NTot, NCoop, groupSizeAv, groupSizeMed, NTot_type, fCoop_group, grSizeVec = calc_cell_stat(
         groupMatrix)
 
     # calc total population sizes
     for tt in range(NType):
-        output['N%i' %tt][sample_idx] = Ntot_type[tt*2]
-        output['N%imut' %tt][sample_idx] = Ntot_type[tt*2+1]
+        output['N%i' %tt][sample_idx] = NTot_type[tt*2]
+        output['N%imut' %tt][sample_idx] = NTot_type[tt*2+1]
        
     output['NTot'][sample_idx] = NTot
     output['NCoop'][sample_idx] = NCoop
@@ -171,7 +171,7 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
             output['NGroup_mav'], sample_idx, rmsInt) / output['NGroup_mav'][sample_idx]
 
     # calc distribution groupsizes
-    distGrSize[sample_idx, :] = calc_distri(Ntot_group, binGrSize)
+    distGrSize[sample_idx, :] = calc_distri(grSizeVec, binGrSize)
 
     # calc distribution fraction cooperator
     distFCoop[sample_idx, :] = calc_distri(fCoop_group, binFCoop)
@@ -241,64 +241,53 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, f8[::1], f8[::1], f8), nopython=True)
-def calc_indv_rates(rates, groupMat, bVec, deathR, oneVecType, oneVecGroup, delta_indv):
-    # calc total number of individuals per group, use matrix product for speed
-    Ntot = oneVecType @ groupMat
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
+def calc_indv_rates(rates, groupMat, grSizeVec, indvBirthVec, deathR, delta_indv, NType, NGroup):
     
-    #get number of types and groups
-    nType = int(oneVecType.size / 2)
-    nGroup = oneVecGroup.size
-        
     #loop cell types
-    for tt in range(nType):
+    for tt in range(NType):
         #setup indices
         cIdx = 2 * tt
         dIdx = 2 * tt + 1
-        bIdxC1 = cIdx * nGroup 
-        bIdxD1 = dIdx * nGroup
-        dIdxC1 = bIdxC1 + 2 * nType * nGroup
-        dIdxD1 = bIdxD1 + 2 * nType * nGroup
+        bIdxC1 = cIdx * NGroup 
+        bIdxD1 = dIdx * NGroup
+        dIdxC1 = bIdxC1 + 2 * NType * NGroup
+        dIdxD1 = bIdxD1 + 2 * NType * NGroup
         
         #calc density of cooperating partners
-        if nType == 1:
-            #coopPart = n0/ntot
-            coopPart = groupMat[0, :] / Ntot
+        if NType == 1:
+            #coopPart = n0/grSizeVec
+            coopPart = groupMat[0, :] / grSizeVec
         else:
-            #coopPart for type 1 = n2/ntot * n3/ntot * ... * n(nType)/ntot
-            #coopPart for type 2 = n1/ntot * n3/ntot * ... * n(nType)/ntot
+            #coopPart for type 1 = n2/grSizeVec * n3/grSizeVec * ... * n(NType)/grSizeVec
+            #coopPart for type 2 = n1/grSizeVec * n3/N_gr * ... * n(NType)/N_gr
             #etc
-            #vector of ones with size nGroup
-            coopPart = np.copy(oneVecGroup)
-            for pp in range(nType):
+            #vector of ones with size NGroup
+            coopPart = np.ones(NGroup)
+            for pp in range(NType):
                 if pp != tt: #exlude self
-                    coopPart *= groupMat[pp*2, :] / Ntot
+                    coopPart *= groupMat[pp*2, :] / grSizeVec
                 
         # calc rates
-        rates[bIdxC1: bIdxC1 + nGroup] = bVec[cIdx] * coopPart * groupMat[cIdx, :]
-        rates[bIdxD1: bIdxD1 + nGroup] = bVec[dIdx] * coopPart * groupMat[dIdx, :] 
+        rates[bIdxC1: bIdxC1 + NGroup] = indvBirthVec[cIdx] * coopPart * groupMat[cIdx, :]
+        rates[bIdxD1: bIdxD1 + NGroup] = indvBirthVec[dIdx] * coopPart * groupMat[dIdx, :] 
         if delta_indv != 0:
-            rates[dIdxC1: dIdxC1 + nGroup] = deathR * groupMat[cIdx, :] * Ntot**delta_indv
-            rates[dIdxD1: dIdxD1 + nGroup] = deathR * groupMat[dIdx, :] * Ntot**delta_indv
+            rates[dIdxC1: dIdxC1 + NGroup] = deathR * groupMat[cIdx, :] * (grSizeVec ** delta_indv)
+            rates[dIdxD1: dIdxD1 + NGroup] = deathR * groupMat[dIdx, :] * (grSizeVec ** delta_indv)
         else:
-            rates[dIdxC1: dIdxC1 + nGroup] = deathR * groupMat[cIdx, :]
-            rates[dIdxD1: dIdxD1 + nGroup] = deathR * groupMat[dIdx, :] 
+            rates[dIdxC1: dIdxC1 + NGroup] = deathR * groupMat[cIdx, :]
+            rates[dIdxD1: dIdxD1 + NGroup] = deathR * groupMat[dIdx, :] 
 
     return None
 
 # process individual level events
-@jit(i8(f8[:, ::1], f8[::1], f8, f8[::1]), nopython=True)
-def process_indv_event(groupMat, rateVector, mutationR, rand):
-    # Note: groupMat is updated in place, it does not need to be returned
-
-    # calc number of groups
-    shapeGroupMat = groupMat.shape
-    NGroup = shapeGroupMat[1]
-    NTypeWMut = shapeGroupMat[0]
+@jit(i8(f8[:, ::1], f8[::1], f8, f8[::1], i8, i8), nopython=True)
+def process_indv_event(groupMat, indvRates, mutR, rand, NType, NGroup):
+    # Note: groupMat is updated in place, it does not need to be returned 
+    NTypeWMut = NType*2
     
-
     # select random event based on propensity
-    eventID = util.select_random_event(rateVector, rand[0])
+    eventID = util.select_random_event(indvRates, rand[0])
 
     # get event type
     eventType = math.floor(eventID/NGroup)
@@ -312,7 +301,7 @@ def process_indv_event(groupMat, rateVector, mutationR, rand):
         # add cell to group, check for mutations first
         cellType = eventType
         if (cellType % 2) == 0:  # Wild type cell, can mutate
-            if rand[1] < mutationR:  # birth with mutation
+            if rand[1] < mutR:  # birth with mutation
                 groupMat[cellType+1, eventGroup] += 1
             else:  # birth without mutation
                 groupMat[cellType, eventGroup] += 1
@@ -326,10 +315,46 @@ def process_indv_event(groupMat, rateVector, mutationR, rand):
         # kill group if last cell died
         # use two stage check for increased speed
         if groupMat[cellType, eventGroup] == 0:  # killed last of type
-            #NInGroup = oneVecType @ groupMat[:, eventGroup]
-            NInGroup = groupMat[:, eventGroup].sum()
-            if NInGroup == 0:  # all other types are zero too
+            #NINGroup = oneVecType @ groupMat[:, eventGroup]
+            NINGroup = groupMat[:, eventGroup].sum()
+            if NINGroup == 0:  # all other types are zero too
                 groupDeathID = int(eventGroup)
+
+    return groupDeathID
+
+
+"""============================================================================
+Sub functions migration dynamics 
+============================================================================"""
+
+# process migration event
+@jit(i8(f8[:, ::1], f8[::1], i8, i8, f8[::1]), nopython=True)
+def process_migration_event(groupMat, grSizeVec, NGroup, NType, rand):
+    # Note: groupMat is updated in place, it does not need to be returned
+
+    # select random group of origin based on size
+    grpIDSource = util.select_random_event(grSizeVec, rand[0])
+
+    # select random type of migrant based on population size
+    cellType = util.select_random_event(groupMat[:, grpIDSource], rand[1])
+    
+    # select random target group
+    grpIDTarget = int(np.floor(rand[2] * NGroup))
+
+    #perform migration
+    groupMat[cellType, grpIDSource] -= 1
+    groupMat[cellType, grpIDTarget] += 1
+
+    # track if any groups die in process
+    groupDeathID = int(-1)  # -1 is no death
+
+    # kill group if last cell died
+    # use two stage check for increased speed
+    if groupMat[cellType, grpIDSource] == 0:  # killed last of type
+        #NINGroup = oneVecType @ groupMat[:, eventGroup]
+        NINGroup = groupMat[:, grpIDSource].sum()
+        if NINGroup == 0:  # all other types are zero too
+            groupDeathID = int(grpIDSource)
 
     return groupDeathID
 
@@ -343,56 +368,54 @@ Sub functions group dynamics
 def remove_group(groupMat, groupDeathID):
     # Note: groupMat is re-created, it has to be returned
     # create helper vector
-    numGroup = groupMat.shape[1]
-    hasDied = np.zeros(numGroup)
+    NGroup = groupMat.shape[1]
+    hasDied = np.zeros(NGroup)
     hasDied[groupDeathID] = 1
 
     # copy remaining groups to new matrix
     groupMat = groupMat[:, hasDied == 0]
 
-    numGroup -= 1
+    NGroup -= 1
 
-    return (groupMat, numGroup)
+    return (groupMat, NGroup)
 
 
 # calculate fission and extinction rate of all groups
-@jit(f8[::1](f8[:, ::1], f8, f8, f8, f8, f8, f8, f8, f8[::1], f8[::1]), nopython=True)
-def calc_group_rates(groupMat, group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size, oneVecType, oneVecGroup):
-    # calc total number of individuals per group, use matrix product for speed
-    Ntot_group = oneVecType @ groupMat
-
-    # calc total number of individuals
-    Ntot = oneVecGroup @ Ntot_group
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
+def calc_group_rates(groupRates, groupMat, grSizeVec, NTot, NGroup, 
+    gr_CFis, gr_SFis, K_grp, K_tot,
+    delta_grp, delta_tot, delta_size):
 
     # calc fission rate
-    fissionR = Ntot_group * group_Sfission + group_Cfission
+    fissionR = grSizeVec * gr_SFis + gr_CFis
   
     # calc extinction rate
-    if delta_group != 0:
-        groupDep = (oneVecGroup.size / K_group)**delta_group
+    if delta_grp != 0:
+        groupDep = (NGroup / K_grp) ** delta_grp
     else:
         groupDep = 1
         
     if delta_tot != 0:
-        popDep = (Ntot / K_tot)**delta_tot
+        popDep = (NTot / K_tot) ** delta_tot
     else:
         popDep = 1    
 
     if delta_size != 0:
-        sizeEffect = (1/Ntot_group)**delta_size
-        #sizeEffect = sizeEffect /  (oneVecGroup @ sizeEffect)
+        sizeEffect = (1/grSizeVec) ** delta_size
+        #sizeEffect = sizeEffect /  (oneVecGrp @ sizeEffect)
         extinctR = groupDep * popDep * sizeEffect
     else:
-        extinctR = groupDep * popDep * oneVecGroup
+        extinctR = groupDep * popDep * np.ones(NGroup)
 
     # combine all rates in single vector
-    rates = np.concatenate((fissionR, extinctR))
+    groupRates[0:NGroup] = fissionR
+    groupRates[NGroup::] = extinctR
 
-    return rates
+    return None
 
 
 @jit(Tuple((f8[::1],f8[:, ::1]))(f8[::1], f8, f8), nopython=True)
-def fission_groups(parentGroup, offspr_size, offspr_frac):        
+def fission_group(parentGroup, offspr_size, offspr_frac):        
     #number of cells in parents
     cellNumPar = parentGroup.sum()
    
@@ -442,24 +465,24 @@ def fission_groups(parentGroup, offspr_size, offspr_frac):
 @jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8), nopython=True)
 def process_group_event(groupMat, groupRates, rand, offspr_size, offspr_frac):
     # get number of groups
-    numGroup = groupMat.shape[1]
+    NGroup = groupMat.shape[1]
 
     # select random event based on propensity
     eventID = util.select_random_event(groupRates, rand[0])
 
     # get event type
-    eventype = math.floor(eventID/numGroup)
+    eveNType = math.floor(eventID/NGroup)
     # get event group
-    eventGroup = eventID % numGroup  # % is modulo operator
+    eventGroup = eventID % NGroup  # % is modulo operator
 
-    if eventype < 1:
+    if eveNType < 1:
         # fission event - add new group and split cells
         # get parent composition
         parentGroup = groupMat[:, eventGroup].copy()
 
         #perform fission process
         if offspr_size > 0:
-            parrentNew, offspring = fission_groups(parentGroup, offspr_size, offspr_frac)
+            parrentNew, offspring = fission_group(parentGroup, offspr_size, offspr_frac)
 
             # only add daughter if not empty
             if offspring.sum() > 0:
@@ -468,25 +491,76 @@ def process_group_event(groupMat, groupRates, rand, offspr_size, offspr_frac):
                 # add new daughter group
                 groupMat = np.column_stack((groupMat, offspring))
     
-            numGroup = groupMat.shape[1]
+            NGroup = groupMat.shape[1]
 
     else:
         # extinction event - remove group
-        groupMat, numGroup = remove_group(groupMat, eventGroup)
+        groupMat, NGroup = remove_group(groupMat, eventGroup)
 
-    return (groupMat, numGroup)
+    return (groupMat, NGroup)
 
 
 # create helper vectors for dot products
 def create_helper_vector(NGroup, NType):
-    oneVecGroup = np.ones(NGroup)
+    oneVecGrp = np.ones(NGroup)
     oneVecIndvR = np.ones(NGroup * NType * 4)
     oneVecGrR = np.ones(NGroup * 2)
     #init rates matrix
-    rates = np.ones(4 * NType * NGroup)   
-    
-    return(oneVecGroup, oneVecIndvR, oneVecGrR, rates)
+    indvRates = np.ones(4 * NType * NGroup)
+    groupRates = np.ones(2 * NGroup)
 
+    return(oneVecGrp, oneVecIndvR, oneVecGrR, indvRates, groupRates)
+
+#calc group properties
+
+
+# calc total number of individuals per group, use matrix product for speed
+@jit(Tuple((f8[::1], f8))(f8[:, ::1], f8[::1], f8[::1]), nopython=True)
+def calc_group_state(groupMat, oneVecType, oneVecGrp):
+    #vector with size of each group
+    grSizeVec = oneVecType @ groupMat
+    #float total number of individuals
+    NTot = oneVecGrp @ grSizeVec
+
+    return(grSizeVec, NTot)
+
+
+def calc_time_steps(model_par):
+    # get time rates
+    sampleInt = model_par['sampleInt']
+    maxT = model_par['maxT']
+    # calc time windows to average over
+    mavInt = int(
+        math.ceil(model_par['mav_window'] / model_par['sampleInt']))
+    rmsInt = int(
+        math.ceil(model_par['rms_window'] / model_par['sampleInt']))
+
+    if 'minT' in model_par:
+        minTRun = max(model_par['minT'], rmsInt+1)
+    else:
+        minTRun = rmsInt + 1
+
+    return (maxT, minTRun, sampleInt, mavInt, rmsInt)
+
+
+def adjust_indv_rates(model_par):
+
+    NType = int(model_par['indv_NType'])
+    indv_asymmetry = float(model_par['indv_asymmetry'])
+    indv_cost = float(model_par['indv_cost'])
+    indv_K = float(model_par['indv_K'])
+
+    #calc birth rates to keep constant EQ group size when all cells are cooperators
+    indvBirthVecCoop = 1 / (indv_asymmetry ** (np.arange(NType)))
+    indvBirthVecCoop *= (indvBirthVecCoop.sum() ** (NType - 1)) / np.prod(indvBirthVecCoop)
+    #include costs and calc birth rates for cooperators and defectors respectively
+    indvBirthVec = np.kron(indvBirthVecCoop, np.array([(1 - indv_cost), 1]))
+    #convert caryinf capacity to death rate
+    indv_deathR = 1 / indv_K
+
+    oneVecType = np.ones(2 * NType)
+
+    return (oneVecType, indvBirthVec, indv_deathR)
 
 """============================================================================
 Main model code
@@ -501,63 +575,42 @@ def run_model(model_par):
 
 
     # Initialize model, get rates and init matrices
-    # get time rates
-    sampleInt = model_par['sampleInt']
-    maxT = model_par['maxT']
-    # calc time windows to average over
-    mavInt = int(
-        math.ceil(model_par['mav_window'] / model_par['sampleInt']))
-    rmsInt = int(
-        math.ceil(model_par['rms_window'] / model_par['sampleInt']))
-
-    if 'minT' in model_par:
-        minTRun = max(model_par['minT'], rmsInt+1)
-    else:
-        minTRun = rmsInt + 1
-        
-        
-    maxPopSize = model_par['maxPopSize']
-        
+    maxT, minTRun, sampleInt, mavInt, rmsInt = calc_time_steps(model_par)
+                
     # initialize group matrix
     groupMat = init_groupMat(model_par)
 
     # get matrix with random numbers
     # creates matrix with maxRandMatSize entries, it is recreated if needed
     maxRandMatSize = int(1E6)
-    randMat = util.create_randMat(maxRandMatSize, 4)
+    randMat = util.create_randMat(maxRandMatSize, 5)
 
     # initialize output matrix
     output, distFCoop, binFCoop, distGrSize, binGrSize = init_output_matrix(model_par)
   
     # helper vector to calc sum over all groups
-    numGroup=groupMat.shape[1]
-    numType = int(model_par['indv_NType'])
-    oneVecGroup, oneVecIndvR, oneVecGrR, indvRates = create_helper_vector(
-        numGroup, numType)
+    NGroup = groupMat.shape[1]
     
-    oneVecType = np.ones(2 * numType)
-
-    # get model rates
-    indv_K, indv_cost, indv_mutationR, indv_asymmetry, delta_indv = \
-        [float(model_par[x]) for x in ('indv_K', 'indv_cost', 'indv_mutationR', \
-         'indv_asymmetry', 'delta_indv')]
-   
+    # get individual rates
+    indv_mutR, delta_indv, inv_migrR = [float(model_par[x])
+        for x in ('indv_mutR', 'delta_indv','indv_migrR')]
+    NType = int(model_par['indv_NType'])
     
-    #calc birth rates to keep constant EQ group size when all cells are cooperators
-    bVecCoop = 1 / indv_asymmetry**(np.arange(numType))
-    bVecCoop *= (bVecCoop.sum()**(numType - 1)) / np.prod(bVecCoop)
-    #include costs and calc birth rates for cooperators and defectors respectively
-    bVec=np.kron(bVecCoop, np.array([(1 - indv_cost), 1]))
-    #convert caryinf capacity to death rate
-    indv_deathR = 1 / indv_K
-
-    #get group rates
-    group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size = [float(model_par[x])
-                                              for x in ('gr_Cfission','gr_Sfission', 'K_group', 'K_tot', 
-                                                        'delta_group', 'delta_tot', 'delta_size')]
-
+    indv_K     = float(model_par['indv_K'])
+    
+    #get group fission rates
+    gr_CFis, gr_SFis = [float(model_par[x])
+        for x in ('gr_Cfission','gr_Sfission')] 
+    #get group death rates 
+    K_grp, K_tot, delta_grp, delta_tot, delta_size = [float(model_par[x])
+        for x in ('K_grp', 'K_tot', 'delta_grp', 'delta_tot', 'delta_size')]
+    #get group reproduction traits
     offspr_size, offspr_frac = [float(model_par[x])
-                                for x in ('offspr_size', 'offspr_frac')]
+        for x in ('offspr_size', 'offspr_frac')]
+    
+    #adjust fission for K
+    gr_SFis /= indv_K
+    
     
     #check rates
     if offspr_size > 0.5: 
@@ -572,6 +625,13 @@ def run_model(model_par):
     ttR = 0
     sampleIdx = 0
 
+    #init static helper vectors
+    oneVecType, indvBirthVec, indv_deathR = adjust_indv_rates(model_par)
+
+    #init dynamic helper vectors
+    oneVecGrp, oneVecIndvR, oneVecGrR, indvRates, groupRates = \
+        create_helper_vector(NGroup, NType)
+
     # get first sample of init state
     sampleIdx = sample_model(groupMat, output, distFCoop, binFCoop,
                              distGrSize, binGrSize, sampleIdx, currT, mavInt, rmsInt, stateVarPlus)
@@ -581,64 +641,68 @@ def run_model(model_par):
 
         # reset rand matrix when used up
         if ttR >= maxRandMatSize:
-            randMat = util.create_randMat(maxRandMatSize, 4)
+            randMat = util.create_randMat(maxRandMatSize, 5)
             ttR = 0
 
+        #calc group state
+        grSizeVec, NTot = calc_group_state(groupMat, oneVecType, oneVecGrp)
+
+
         # calc rates of individual level events
-        calc_indv_rates(indvRates, groupMat, bVec,
-                                    indv_deathR, oneVecType, oneVecGroup, delta_indv)       
+        calc_indv_rates(indvRates, groupMat, grSizeVec, indvBirthVec,
+                        indv_deathR, delta_indv,
+                        NType, NGroup)
         
         
         # calc rates of group events
-        groupRates = calc_group_rates(groupMat,
-                                      group_Cfission, group_Sfission, K_group, K_tot, delta_group, delta_tot, delta_size,
-                                      oneVecType, oneVecGroup)
+        calc_group_rates(groupRates, groupMat, grSizeVec, NTot, NGroup,
+                        gr_CFis, gr_SFis, K_grp, K_tot,
+                        delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
         indvProp = oneVecIndvR @ indvRates
-        # !!CHANGE!! removed ... / gr_tau
-        groupProp = (oneVecGrR @ groupRates)
-        totProp = indvProp + groupProp
+        groupProp = oneVecGrR @ groupRates
+        migrProp = inv_migrR * NTot
+        totProp = indvProp + groupProp + migrProp
 
         # calc time step
         dt = -1 * math.log(randMat[ttR, 1]) / totProp
 
         # select group or individual event
         rescaledRand = randMat[ttR, 0] * totProp
+        groupsHaveChanged = False
         if rescaledRand < indvProp:
             # individual level event - select and process individual level event
             groupDeathID = process_indv_event(
-                groupMat, indvRates, indv_mutationR, randMat[ttR, 2:4])
+                groupMat, indvRates, indv_mutR, randMat[ttR, 2:4], NType, NGroup)
 
-            # check if group has died
-            if groupDeathID > -1:
-                # remove empty group
-                groupMat, numGroup = remove_group(groupMat, groupDeathID)
+            if groupDeathID > -1:  # remove empty group
+                groupMat, NGroup = remove_group(groupMat, groupDeathID)
+                groupsHaveChanged = True
 
-                # if all groups have died, end simulation
-                if numGroup == 0:
-                    sampleIdx = sample_extinction(output, distFCoop, binFCoop,
-                                                  distGrSize, sampleIdx, currT, stateVarPlus)
-                    break
-
-                # recreate helper vector
-                oneVecGroup, oneVecIndvR, oneVecGrR, indvRates = create_helper_vector(
-                    numGroup, numType)
+        elif rescaledRand < (indvProp + migrProp):
+            # migration event - select and process migration event
+            groupDeathID = process_migration_event(
+                groupMat, grSizeVec, NGroup, NType, randMat[ttR, 2:5])
+            
+            if groupDeathID > -1:  # remove empty group
+                groupMat, NGroup = remove_group(groupMat, groupDeathID)
+                groupsHaveChanged = True
 
         else:
             # group level event - select and process group level event
-            groupMat, numGroup = process_group_event(
+            groupMat, NGroup = process_group_event(
                 groupMat, groupRates, randMat[ttR, 2:4], offspr_size, offspr_frac)
+            groupsHaveChanged = True
 
-            # if all groups have died, end simulation
-            if numGroup == 0:
+        if groupsHaveChanged:
+            if NGroup == 0:  # if all groups have died, end simulation
                 sampleIdx = sample_extinction(output, distFCoop, binFCoop,
                                               distGrSize, sampleIdx, currT, stateVarPlus)
                 break
-
-            # recreate helper vector
-            oneVecGroup, oneVecIndvR, oneVecGrR, indvRates = create_helper_vector(
-                numGroup, numType)
+            else: #otherwise, recreate helper vectors
+                oneVecGrp, oneVecIndvR, oneVecGrR, indvRates, groupRates = \
+                    create_helper_vector(NGroup, NType)
 
         # update time
         currT += dt
@@ -659,10 +723,9 @@ def run_model(model_par):
                     break
                 
             # check if population size remains in bounds
-            if output['NTot'][sampleIdx - 1] > maxPopSize:
+            if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
                 sample_nan(groupMat, output, distFCoop, binFCoop,
                                      distGrSize, binGrSize, sampleIdx - 1, currT, mavInt, rmsInt, stateVarPlus)
-                                
                 break
 
     # cut off non existing time points at end
@@ -693,8 +756,8 @@ def single_run_finalstate(model_par):
 
  
     #input parameters to store
-    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutationR', 'indv_asymmetry', 'delta_indv',
-               'gr_Sfission', 'gr_Cfission', 'K_group', 'K_tot', 'delta_group', 'delta_tot', 'delta_size',
+    parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
+               'gr_Sfission', 'gr_Cfission', 'K_grp', 'K_tot', 'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size','offspr_frac']
                                                         
     stateVarPlus = stateVar + \
@@ -758,22 +821,24 @@ if __name__ == "__main__":
         "indv_NType":       2,
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
-        "indv_cost":        0.001,  # cost of cooperation
-        "indv_mutationR":   1E-3,   # mutation rate to cheaters
+        "indv_cost":        0.01,  # cost of cooperation
+        "indv_mutR":   1E-3,   # mutation rate to cheaters
+        "indv_migrR":   0,   # mutation rate to cheaters
         # group size control
-        "indv_K":           10,     # total group size at EQ if f_coop=1
-        "delta_indv":       0,      # zero if death rate is simply 1/k, one if death rate decreases with group size
+        "indv_K":           50,     # total group size at EQ if f_coop=1
+        "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_Sfission':      1/10,
+        'gr_Cfission':      1/100,
+        'gr_Sfission':      1/50,
         # extinction rate
-        'delta_group':      1,      # exponent of denisty dependence on group #
-        'K_group':          10,    # carrying capacity of groups
-        'delta_tot':        0,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            0,   # carrying capacity of total individuals
-        'delta_size':       1,      # exponent of size dependence
+        'delta_grp':      0,      # exponent of denisty dependence on group #
+        'K_grp':          0,    # carrying capacity of groups
+        'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
+        'K_tot':            30000,   # carrying capacity of total individuals
+        'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac': 0.5  # offspr_size < offspr_frac < 1-offspr_size'
+        'offspr_frac': 0.8  # offspr_size < offspr_frac < 1-offspr_size'
     }
     output, distFCoop, distGrSize = run_model(model_par)

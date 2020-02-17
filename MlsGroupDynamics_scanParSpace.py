@@ -30,7 +30,7 @@ Define parameters
 ============================================================================"""
 
 override_data = False #set to true to force re-calculation
-numCore = 40 #number of cores to run code on
+numCoreDef = 40 #number of cores to run code on
 
 #where to store output?
 
@@ -67,7 +67,8 @@ model_par = {
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
         "indv_cost":        0.05,  # cost of cooperation
-        "indv_mutationR":   1E-3,   # mutation rate to cheaters
+        "indv_mutR":        1E-3,   # mutation rate to cheaters
+        "indv_migrR":       0,   # mutation rate to cheaters
         # group size control
         "indv_K":           50,     # total group size at EQ if f_coop=1
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
@@ -93,7 +94,7 @@ model_par = {
 
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
-                'delta_group'   : 'dGrp',
+                'delta_grp'     : 'dGrp',
                 'delta_tot'     : 'dTot',
                 'delta_size'    : 'dSiz',
                 'gr_Cfission'   : 'fisC',
@@ -101,9 +102,10 @@ parNameAbbrev = {
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
-                'indv_mutationR': 'mutR', 
+                'indv_mutR'     : 'mutR', 
+                'indv_migrR'    : 'migR', 
                 'indv_K'        : 'kInd', 
-                'K_group'       : 'kGrp', 
+                'K_grp'         : 'kGrp', 
                 'K_tot'         : 'kTot',
                 'model_mode'    : 'mode',
                 'slope_coef'    : 'sCof'}
@@ -117,10 +119,10 @@ Define functions
 
 
 def create_data_name(mainName, model_par):
-    parListName = ['model_mode','indv_cost', 'indv_mutationR',
-                   'indv_K', 'K_group', 'K_tot',
+    parListName = ['indv_cost', 'indv_mutR', 'indv_migrR',
+                   'indv_K', 'K_grp', 'K_tot',
                    'indv_NType', 'indv_asymmetry',
-                   'delta_indv','delta_group','delta_tot','delta_size',
+                   'delta_indv','delta_grp','delta_tot','delta_size',
                    'gr_Cfission','gr_Sfission']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
@@ -140,7 +142,7 @@ def set_fission_mode(model_par, offspr_size, offspr_frac):
 
 
 # run model
-def run_model(mainName, model_par):
+def run_model(mainName, model_par, numCore):
    #create model paremeter list for all valid parameter range
     modelParList = []
     for offspr_size in offspr_sizeVec:
@@ -183,7 +185,7 @@ def check_model_par(model_par, model_par_load, parToIgnore):
 
 
 # Load model is datafile found, run model if not found or if settings have changed
-def load_or_run_model(mainName, model_par):
+def load_or_run_model(mainName, model_par, numCore=numCoreDef):
     # need not check these parameters
     parToIgnore = ('offspr_size', 'offspr_frac')
     dataFileName = create_data_name(mainName, model_par)
@@ -200,7 +202,7 @@ def load_or_run_model(mainName, model_par):
         print('Model data not found, running model')
     if rerun or override_data:
         # rerun model
-        statData = run_model(mainName, model_par)
+        statData = run_model(mainName, model_par, numCore)
     return statData
 
 
