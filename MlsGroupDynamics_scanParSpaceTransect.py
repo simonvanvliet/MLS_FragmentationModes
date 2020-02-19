@@ -30,19 +30,19 @@ Define parameters
 ============================================================================"""
 
 override_data = True #set to true to force re-calculation
-numCore = 40 #number of cores to run code on
+numCore = 20 #number of cores to run code on
 numThread = 1 #number o threads per core
 #where to store output?
 
 data_folder = Path(".")
-mainName = 'transact_Feb10'
+mainName = 'transect_Feb17'
 
 
 #setup variables to scan
-offspr_sizeVec = np.arange(0.01, 0.5001, 0.01)
+perimeter_loc_vec = np.linspace(0,1,51)
 mu_vec = np.array([1e-3, 5e-3, 1e-2, 5e-2, 1e-1])
 type_vec = np.arange(1,5)
-slope_vec = np.linspace(0,0.5,11)
+slope_vec = np.array([0, 1, 2, 4, 6, 8, 10])
 
 K_tot_def = 20000
 
@@ -74,8 +74,8 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_Cfission':      1/100,
-        'gr_Sfission':      1/50,
+        'gr_CFis':          1/100,
+        'gr_SFis':          1/50,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,    # carrying capacity of groups
@@ -84,7 +84,10 @@ model_par = {
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.8  # offspr_size < offspr_frac < 1-offspr_size'
+        'offspr_frac':      0.8,  # offspr_size < offspr_frac < 1-offspr_size'
+        # extra settings
+        'run_idx':          1,
+        'perimeter_loc':    0
     }
 
 
@@ -98,8 +101,8 @@ parNameAbbrev = {
                 'delta_grp'     : 'dGrp',
                 'delta_tot'     : 'dTot',
                 'delta_size'    : 'dSiz',
-                'gr_Cfission'   : 'fisC',
-                'gr_Sfission'   : 'fisS',
+                'gr_CFis'       : 'fisC',
+                'gr_SFis'       : 'fisS',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -109,7 +112,9 @@ parNameAbbrev = {
                 'K_grp'         : 'kGrp', 
                 'K_tot'         : 'kTot',
                 'model_mode'    : 'mode',
-                'slope_coef'    : 'sCof'}
+                'slope_coef'    : 'sCof',
+                'perimeter_loc' : 'pLoc',
+                'run_idx'       : 'idxR'}
 
 
 def create_data_name(mainName, model_par):
@@ -117,7 +122,7 @@ def create_data_name(mainName, model_par):
                    'indv_K', 'K_grp', 'K_tot',
                    'indv_asymmetry',
                    'delta_indv','delta_grp','delta_tot','delta_size',
-                   'gr_Cfission']
+                   'gr_CFis']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
@@ -128,21 +133,27 @@ def create_data_name(mainName, model_par):
 
 
 #set model parameters for fission mode
-def set_fission_mode(offspr_size, indv_NType, indv_mutationR, Sfission):
+def set_fission_mode(perimeter_loc, indv_NType, indv_mutationR, Sfission):
     #copy model par (needed because otherwise it is changed in place)
-    offspr_frac = 1 - offspr_size
     if Sfission == 0:
         K_tot = K_tot_def * 5
     else:
         K_tot = K_tot_def
 
+    if perimeter_loc <= 0.5:
+        offspr_size = perimeter_loc
+        offspr_frac = 1 - offspr_size
+    else:
+        offspr_size = 1 - perimeter_loc
+        offspr_frac = offspr_size
+        
     model_par_local = model_par.copy()
     model_par_local['offspr_size'] = offspr_size
-    model_par_local['K_tot'] = K_tot
     model_par_local['offspr_frac'] = offspr_frac
+    model_par_local['K_tot'] = K_tot
     model_par_local['indv_NType'] = indv_NType
-    model_par_local['indv_mutationR'] = indv_mutationR
-    model_par_local['gr_Sfission'] = Sfission
+    model_par_local['indv_mutR'] = indv_mutationR
+    model_par_local['gr_SFis'] = Sfission
 
     return model_par_local
 
@@ -152,7 +163,7 @@ def run_model():
     # *x unpacks variables stored in tuple x e.g. if x = (a1,a2,a3) than f(*x) = f(a1,a2,a3)
     # itertools.product creates all possible combination of parameters
     modelParList = [set_fission_mode(*x)
-                    for x in itertools.product(*(offspr_sizeVec, type_vec, mu_vec, slope_vec))]
+                    for x in itertools.product(*(perimeter_loc_vec, type_vec, mu_vec, slope_vec))]
 
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
@@ -167,11 +178,12 @@ def run_model():
     dataFilePath = data_folder / (dataFileName + '.npz')    
     
     np.savez(dataFilePath, results=results,
-             offspr_sizeVec = offspr_sizeVec,
+             perimeter_loc_vec = perimeter_loc_vec,
              mu_vec = mu_vec,
              type_vec = type_vec,
-             slope_vec=slope_vec,
-             modelParList = modelParList, date=datetime.datetime.now())
+             slope_vec = slope_vec,
+             modelParList = modelParList, 
+             date = datetime.datetime.now())
     
     return None
 

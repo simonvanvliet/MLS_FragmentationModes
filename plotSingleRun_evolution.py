@@ -75,16 +75,13 @@ def plot_single_run(model_par, output, traitDistr):
 
     # plot number of groups
     plt.subplot(nR, nC, 1)
-    plot_data(output, "NGroup")
     plot_data(output, "NGroup_mav")
     plt.ylabel("# group")
     plt.legend()
     
     # plot fraction of coop
     plt.subplot(nR, nC, 2)
-    plot_data(output, "NCoop")
     plot_data(output, "NCoop_mav")
-    plot_data(output, "NTot")
     plot_data(output, "NTot_mav")
     plt.ylabel("cell number")
     plt.legend()
@@ -97,6 +94,7 @@ def plot_single_run(model_par, output, traitDistr):
     plot_data(output, "offspr_frac_mav")
     plt.ylabel("traits")
     plt.legend()
+    plt.ylim(0, 1)
     
     
     # plot fraction of coop
@@ -120,4 +118,4 @@ def plot_single_run(model_par, output, traitDistr):
     fig.set_size_inches(4, 6)
     plt.tight_layout()  # cleans up figure and aligns things nicely
 
-    return None
+    return fig

@@ -26,11 +26,15 @@ import MlsGroupDynamics_main as mls
 import time
 
 
+"""============================================================================
+GLOBAL Constants
+============================================================================"""
 #outputMat variables to store
 stateVar = ['NTot', 'NCoop', 'fCoop',
             'NGroup', 'groupSizeAv', 'groupSizeMed', 
             'offspr_size','offspr_frac']
 
+#setup bins and vectors for group traits
 nBinOffsprSize = 100
 nBinOffsprFrac = 100    
 
@@ -40,10 +44,32 @@ binsOffsprFrac = np.linspace(0, 1, nBinOffsprFrac+1)
 binCenterOffsprSize = (binsOffsprSize[1::]+binsOffsprSize[0:-1])/2
 binCenterOffsprFrac = (binsOffsprFrac[1::]+binsOffsprFrac[0:-1])/2
 
+#init matrix to keep mutations inbounds
+offsprFracMatrix = np.zeros((nBinOffsprFrac, nBinOffsprSize),dtype=int)
+for ff in range(nBinOffsprFrac):
+    for ss in range(nBinOffsprSize):
+        offsprFracUp = binsOffsprFrac[1:]
+        offsprFracLow = binsOffsprFrac[:-1]
+        
+        toLow = offsprFracUp[ff] < binsOffsprSize[ss]
+        toHigh = offsprFracLow[ff] > (1-binsOffsprSize[ss])
+        #decrease or increase offsprFracIdx till within bounds
+        if toHigh:
+            idx = np.arange(nBinOffsprFrac)
+            withinBounds = offsprFracLow < (1 - binsOffsprSize[ss])
+            offsprFracIdx = int(np.max(idx[withinBounds]))
+        elif toLow:
+            idx = np.arange(nBinOffsprFrac)
+            withinBounds = offsprFracUp > binsOffsprSize[ss]
+            offsprFracIdx = int(np.min(idx[withinBounds]))
+        else:
+            offsprFracIdx = ff
+        offsprFracMatrix[ff, ss] = int(offsprFracIdx)
+                    
+
 """============================================================================
 Init functions 
 ============================================================================"""
-
 
 # initialize outputMat matrix
 def init_outputMat_matrix(model_par):
@@ -236,7 +262,7 @@ def keep_traits_in_bounds(offsprSizeIdx, offsprFracIdx):
     #evaluate at left boundary, as always at max there
     offsprSize = binsOffsprSize[offsprSizeIdx]
     offsprFracUp = binsOffsprFrac[offsprFracIdx+1]
-    offsprFracLow = binsOffsprFrac[offsprSizeIdx]
+    offsprFracLow = binsOffsprFrac[offsprFracIdx]
     #decrease or increase offsprFracIdx till within bounds
     if offsprFracLow > (1 - offsprSize):
         idx = np.arange(nBinOffsprFrac)
@@ -297,7 +323,8 @@ def process_indv_event(grpMat, grpMat2D, indvRate, rand,
             offsprFracIdx = fracIdx
 
         #make sure we stay inside allowed trait space
-        offsprSizeIdx, offsprFracIdx = keep_traits_in_bounds(offsprSizeIdx, offsprFracIdx)
+        #offsprSizeIdx, offsprFracIdx = keep_traits_in_bounds(offsprSizeIdx, offsprFracIdx)
+        offsprFracIdx = offsprFracMatrix[offsprFracIdx, offsprSizeIdx]
         
         # place new offspring
         grpMat[offsprTypeIdx, grpIdx, offsprSizeIdx, offsprFracIdx] += 1

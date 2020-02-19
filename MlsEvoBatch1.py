@@ -26,7 +26,7 @@ model_par = {
     "maxPopSize":       0,
     "maxT":             5000,   # total run time
     "minT":             5000,   # min run time
-    "sampleInt":        1,      # sampling interval
+    "sampleInt":        10,      # sampling interval
     "mav_window":       100,    # average over this time window
     "rms_window":       100,    # calc rms change over this time window
     "rms_err_trNCoop":  0,   # when to stop calculations

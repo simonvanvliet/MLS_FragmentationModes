@@ -12,12 +12,12 @@ import glob
 from pathlib import Path
 
 
-scanFiles = glob.glob('scan2D_Feb11Part1*')
+scanFiles = glob.glob('scan2D_Feb15*')
 
 
 data_folder = Path(".")
 
-fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Feb11Part1"
+fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Feb15"
 fig_FolderPath = Path(fig_Folder)
 
 

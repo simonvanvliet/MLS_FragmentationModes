@@ -55,7 +55,9 @@ model_par = {
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.8  # offspr_size < offspr_frac < 1-offspr_size'
+        'offspr_frac':      0.8,  # offspr_size < offspr_frac < 1-offspr_size'
+        # extra settings
+        'run_idx':          1,
     }
   
         

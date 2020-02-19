@@ -24,14 +24,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load
-fileName = 'vanVliet_scan_cost0.01_indvK1e+02_grK1e+02_sFis0_sExt0'
+fileName = 'transact_Feb10_cost0.01_migR0_kInd1e+02_kGrp0_kTot2e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
 
 #set Folder
 data_folder = Path(".")
 fig_Folder = Path(
-    "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Jan22_2020")
-
-
+    "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Transect")
 
 """============================================================================
 Set figure options 
@@ -85,8 +83,7 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     #remove extension if needed
     if fileName[-4:] == '.npz':
         fileName = fileName[:-4]
-    
-    
+     
     #load data
     loadName = pathLoad / (fileName + '.npz')
     data_file = np.load(loadName, allow_pickle=True)
@@ -112,8 +109,6 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     dTypeList3 = [(x, 'f8') for x in parList]
     dTypeList = dTypeList1 + dTypeList2 + dTypeList3
     dType = np.dtype(dTypeList)
-
-
     statData = np.zeros(len(Output), dType)
 
     # store final state
@@ -127,9 +122,6 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
             statData[par][i] = data[par]
         i += 1
 
-
-
-    
     """============================================================================
     Make plot
     ============================================================================"""
@@ -162,18 +154,18 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
                 titleName = 'NType=%i, Sfis=%.0g' % (
                     type_vec[rr], slope_vec[cc])
             
-                for mm in range(mu_vec.size):
+                for mm in range(1): #mu_vec.size):
                     #plot all different values of mu in same subplot
                     #set parameters for current curve to extract
                     keyDict = {
                         'indv_NType': type_vec[rr],
                         'gr_Sfission': slope_vec[cc],
-                        'indv_mutationR': mu_vec[mm],
+                        'indv_mutR': mu_vec[mm],
                     }
                     dataName = 'mu=%.0g' % mu_vec[mm]
                     #plot data
                     pltutl.plot_transect(
-                        fig, ax1, statData, 'offspr_size', curPar, keyDict, dataName)
+                        fig, ax1, statData, 'perimeter_loc', curPar, keyDict, dataName)
                     ax1.set_title(titleName)
                     ax1.legend()
 

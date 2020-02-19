@@ -74,8 +74,8 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_Sfission':      0,
-        'gr_Cfission':      1/100,
+        'gr_SFis':          0,
+        'gr_CFis':          1/100,
         # extinction rate
         'delta_group':      1,      # exponent of denisty dependence on group #
         'K_group':          1000,    # carrying capacity of groups
@@ -97,8 +97,8 @@ parNameAbbrev = {
                 'delta_grp'     : 'dGrp',
                 'delta_tot'     : 'dTot',
                 'delta_size'    : 'dSiz',
-                'gr_Cfission'   : 'fisC',
-                'gr_Sfission'   : 'fisS',
+                'gr_CFis'       : 'fisC',
+                'gr_SFis'       : 'fisS',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -123,7 +123,7 @@ def create_data_name(mainName, model_par):
                    'indv_K', 'K_grp', 'K_tot',
                    'indv_NType', 'indv_asymmetry',
                    'delta_indv','delta_grp','delta_tot','delta_size',
-                   'gr_Cfission','gr_Sfission']
+                   'gr_CFis','gr_SFis']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
