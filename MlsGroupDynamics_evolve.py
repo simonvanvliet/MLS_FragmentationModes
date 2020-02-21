@@ -255,27 +255,6 @@ def sample_extinction(outputMat, traitDistr, sample_idx, currT, stateVarPlus):
 """============================================================================
 Sub functions individual dynamics 
 ============================================================================"""
-
-@jit(UniTuple(i8,2)(i8, i8), nopython=True)
-def keep_traits_in_bounds(offsprSizeIdx, offsprFracIdx):
-    #make sure offspring fraction remains within bounds
-    #evaluate at left boundary, as always at max there
-    offsprSize = binsOffsprSize[offsprSizeIdx]
-    offsprFracUp = binsOffsprFrac[offsprFracIdx+1]
-    offsprFracLow = binsOffsprFrac[offsprFracIdx]
-    #decrease or increase offsprFracIdx till within bounds
-    if offsprFracLow > (1 - offsprSize):
-        idx = np.arange(nBinOffsprFrac)
-        withinBounds = binsOffsprFrac[:-1] < (1 - offsprSize)
-        offsprFracIdx = np.max(idx[withinBounds])
-        
-    elif offsprFracUp < offsprSize:
-        idx = np.arange(nBinOffsprFrac)
-        withinBounds = binsOffsprFrac[1:] > offsprSize
-        offsprFracIdx = np.min(idx[withinBounds])
-    
-    return (offsprSizeIdx, offsprFracIdx)
-
 # process individual level events
 @jit(i8(f8[:, :, :, ::1], f8[:, ::1], f8[::1], f8[::1], i8, i8, f8, f8, f8), nopython=True)
 def process_indv_event(grpMat, grpMat2D, indvRate, rand, 
@@ -323,7 +302,6 @@ def process_indv_event(grpMat, grpMat2D, indvRate, rand,
             offsprFracIdx = fracIdx
 
         #make sure we stay inside allowed trait space
-        #offsprSizeIdx, offsprFracIdx = keep_traits_in_bounds(offsprSizeIdx, offsprFracIdx)
         offsprFracIdx = offsprFracMatrix[offsprFracIdx, offsprSizeIdx]
         
         # place new offspring
@@ -416,77 +394,89 @@ def calc_mean_group_prop(parentGroup):
     #parent group: type / frac  / size     
     #number of cells in parents
     parTraitMatrix = parentGroup.sum(axis=0)
-    cellNumPar = parTraitMatrix.sum()
+    NCellPar = parTraitMatrix.sum()
 
-    marginalSize = parTraitMatrix.sum(axis=0) / cellNumPar
-    marginalFrac = parTraitMatrix.sum(axis=1) / cellNumPar
+    marginalSize = parTraitMatrix.sum(axis=0) / NCellPar
+    marginalFrac = parTraitMatrix.sum(axis=1) / NCellPar
     offspr_size = np.sum(binCenterOffsprSize * marginalSize)
     offspr_frac = np.sum(binCenterOffsprFrac * marginalFrac)
     
-    return(offspr_size, offspr_frac, cellNumPar)
+    return(offspr_size, offspr_frac, NCellPar)
 
 @jit(Tuple((f8[:, :, ::1],f8[:, :, :, ::1]))(f8[:, :, ::1]), nopython=True)
 def fission_group(parentGroup):   
     #get group properties
-    offspr_size, offspr_frac, cellNumPar = calc_mean_group_prop(parentGroup)
-   
+    offspr_size, offspr_frac, NCellPar = calc_mean_group_prop(parentGroup)
+    NCellPar = int(NCellPar)
+       
     #calc number of offspring, draw from Poisson distribution
-    # <#offspring> = numCellsToOffspr / sizeOfOffspr
-    # = offspr_frac * cellNumPar / offspr_size * cellNumPar
-    # = offspr_frac / offspr_size
-    expectedNumOffSpr = offspr_frac / offspr_size
-    numOffSpr = int(np.random.poisson(expectedNumOffSpr))
-    #calc total number of cells passed on to offspring, keep at least 1 cell in parent
-    #numCellPerOffspr = round(offspr_size * cellNumPar)
-    #numCellsToOffspr = int(min(numCellPerOffspr*numOffSpr, cellNumPar-1))
-    numCellsToOffspr = int(min(round(offspr_frac * cellNumPar), cellNumPar-1))
-
+    # <#offspring> = NCellToOffspr / sizeOfOffspr = offspr_frac / offspr_size
+    expectNOffspr = offspr_frac / offspr_size
+    # calc num cells per offsring
+    NCellPerOffspr = round(offspr_size * NCellPar)
+    
+    if NCellPerOffspr > 0:
+        #calc max num offspring group
+        maxNOffspr = int(np.floor(NCellPar / NCellPerOffspr))
+        #draw number of offspring from truncated Poission distribution
+        NOffspr = util.truncated_poisson(expectNOffspr, maxNOffspr)
+        NCellToOffspr = NOffspr * NCellPerOffspr
+    else:
+        NCellToOffspr = 0
+    
     #assign cells to offspring
-    if numOffSpr > 0:
-        parrentPool = parentGroup
+    if NCellToOffspr > 0:
         matShape = parentGroup.shape
-
-        #init offspring array
-        offspring = np.zeros((matShape[0], numOffSpr, matShape[1], matShape[2]))
-
-        #perform random sampling
-        randMat = util.create_randMat(numCellsToOffspr, 1)
-
-        for ii in range(numCellsToOffspr):
-            #randomly pick cell from parent using weighted lottery
-            typePicked = util.select_random_event_3D(parrentPool, randMat[ii, 0])
-            idxPick = util.flat_to_3d_index(typePicked, matShape)
-            #idxPick = np.unravel_index(typePicked, matShape)
-
-            #deal round the table: select offsping to assign cell to
-            offspringPicked = ii % numOffSpr 
-            #assign cell to offspring
-            offspring[idxPick[0], offspringPicked, idxPick[1], idxPick[2]] += 1
-            #remove cell from parent
-            parrentPool[idxPick] -= 1
         
-        #remove empty daughter groups
-        numCellInOffspr = offspring.sum(axis=3).sum(axis=2).sum(axis=0)
-        numNonEmptyOffspring = int(np.sum(numCellInOffspr>0))
+        #vector with destination index for all cells
+        #initialize to -1: stay with parent
+        destinationIdx = np.full(NCellPar, -1)
+        #assign indices 0 to N-1 for offspring
+        offsprIdx = np.kron(np.arange(NOffspr), np.ones(NCellPerOffspr))
+        destinationIdx[0:NCellToOffspr] = offsprIdx
         
-        if numNonEmptyOffspring < numOffSpr:
-            offspringNew = np.zeros((matShape[0], numNonEmptyOffspring, matShape[1], matShape[2]))
-            idx = 0
-            for i in range(numOffSpr):
-                if numCellInOffspr[i] > 0:
-                    offspringNew[:, idx, :, :] = offspring[:, i, :, :]
-                    idx += 1
-            offspring = offspringNew        
+        #random shuffle matrix 
+        destinationIdx = np.random.permutation(destinationIdx)
         
-        #update parent to new state
-        parrentNew = parrentPool
+        #now identify all cells in parent group
+        #create vector with type idx, offspr_frac idx, offspr_size idx
+        parCellProp = np.ones((NCellPar, 3), dtype=i8) #CHNAGE TO I8 FOR NUMBA
+        
+        #find non zero elements
+        ttIDx, ffIdx, ssIdx = np.nonzero(parentGroup)
+        #loop all cells in parentgroup and store properties
+        idx = 0
+        for ii in range(ttIDx.size):
+            numCell = parentGroup[ttIDx[ii], ffIdx[ii], ssIdx[ii]]
+            while numCell>0:
+                parCellProp[idx, 0] = ttIDx[ii]
+                parCellProp[idx, 1] = ffIdx[ii]
+                parCellProp[idx, 2] = ssIdx[ii]
+                numCell -= 1
+                idx += 1
+    
+        #assign cells to offspring
+        #init offspring and parremt array
+        offspring = np.zeros((matShape[0], NOffspr, matShape[1], matShape[2]))
+        parrentNew = np.zeros((matShape[0], matShape[1], matShape[2]))
+        
+        for cc in range(NCellPar):
+            currDest = destinationIdx[cc]
+            if currDest == -1: #stays in parrent
+                parrentNew[parCellProp[cc,0],
+                           parCellProp[cc,1],
+                           parCellProp[cc,2]] += 1
+            else:
+                offspring[parCellProp[cc,0],
+                          currDest,
+                          parCellProp[cc,1],
+                          parCellProp[cc,2]] += 1
     else:
         #nothing happens
         parrentNew = parentGroup
         offspring = np.zeros((0, 0, 0, 0))
-            
+                
     return (parrentNew, offspring)
-
 
 # process individual level events
 @jit(Tuple((f8[:, :, :, ::1], f8[:, ::1]))(f8[:, :, :, ::1], f8[:, ::1], f8[::1], f8[::1]), nopython=True)
@@ -511,16 +501,27 @@ def process_group_event(grpMat, grpMat2D, grpRate, rand):
         parrentNew, offspring = fission_group(parentGroup)
 
         # only add daughter if not empty
-        if offspring.sum() > 0:
-            numOffspring = offspring.shape[1]
-            # update parrent
-            grpMat[:, eventGroup, :, :] = parrentNew
-            # add new daughter group
-            newShape = (grpMat.shape[0], grpMat.shape[1]+numOffspring, grpMat.shape[2], grpMat.shape[3])
+        if offspring.size > 0:
+            parNotEmpty = parrentNew.sum() > 0
+            #helper indices
+            NOffspr = offspring.shape[1]
+            NGr1 = eventGroup
+            NGr2 = NGroup - eventGroup - 1
+            # setup new group matrix  
+            numNewGroup = NGroup + NOffspr if parNotEmpty else NGroup + NOffspr -1
+            newShape = (grpMat.shape[0], numNewGroup, grpMat.shape[2], grpMat.shape[3])
             grpMatNew = np.zeros(newShape)
-            grpMatNew[:,:-numOffspring,:,:] = grpMat
-            grpMatNew[:,-numOffspring::,:,:] = offspring
-                        
+            
+            #store all other groups
+            grpMatNew[:,:NGr1,:,:] = grpMat[:,:NGr1,:,:]
+            grpMatNew[:,NGr1:NGr1+NGr2,:,:] = grpMat[:,NGr1+1::,:,:]
+            #store offspring
+            grpMatNew[:, NGr1+NGr2:NGr1+NGr2+NOffspr, :, :] = offspring
+            #store parrent group
+            if parNotEmpty:
+                grpMatNew[:, -1, :, :] = parrentNew
+            
+            #create 2D matrice
             grpMat2DNew = grpMatNew.sum(axis=3).sum(axis=2)
         else:
             grpMatNew = grpMat
@@ -824,7 +825,7 @@ if __name__ == "__main__":
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,    # carrying capacity of groups
         'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            30000,   # carrying capacity of total individuals
+        'K_tot':            5000,   # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # initial settings for fissioning
         'offspr_sizeInit':  0.25,  # offspr_size <= 0.5 and

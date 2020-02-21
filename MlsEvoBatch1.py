@@ -11,12 +11,12 @@ import MlsGroupDynamics_evolve as mls
 import numpy as np
 from joblib import Parallel, delayed
 
-mainName = 'evolution_Feb16'
-numCore = 45;
+mainName = 'evolution_Feb19'
+numCore = 30;
 
 
 gr_Sfission_Vec = np.array([0, 2, 4])
-indv_KVec = np.array([50, 100, 200])
+indv_KVec = np.array([100, 200])
 init_Aray = np.array([[0.05,0.06],[0.05,0.5],[0.05,0.94],[0.25,0.5],[0.45,0.5]])
 numInit = init_Aray.shape[0]
 K_tot_def = 5000
@@ -26,7 +26,7 @@ model_par = {
     "maxPopSize":       0,
     "maxT":             5000,   # total run time
     "minT":             5000,   # min run time
-    "sampleInt":        10,      # sampling interval
+    "sampleInt":        20,      # sampling interval
     "mav_window":       100,    # average over this time window
     "rms_window":       100,    # calc rms change over this time window
     "rms_err_trNCoop":  0,   # when to stop calculations
@@ -44,8 +44,8 @@ model_par = {
     "indv_migrR":       0,   # mutation rate to cheaters
     # set mutation rates
     'mutR_type':        1E-3,
-    'mutR_size':        1E-1, 
-    'mutR_frac':        1E-1, 
+    'mutR_size':        2E-2, 
+    'mutR_frac':        2E-2, 
     # group size control
     "indv_K":           100,     # total group size at EQ if f_coop=1
     "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size

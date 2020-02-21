@@ -84,8 +84,14 @@ def select_random_event_3D(propensity_vec, randNum):
     id_group = index[(cumPropensity > randNumScaled)][0]
     return id_group
 
-
-
+@jit(i8(f8, i8))
+def truncated_poisson(expect_value, cutoff):
+    searching = True
+    while searching:
+        randNum = int(np.random.poisson(expect_value))
+        if randNum <= cutoff:
+            searching = False
+    return randNum
 
 
 # %%create matrix with random numbers, excluding 0 and 1

@@ -8,105 +8,90 @@ vanvliet@zoology.ubc.ca
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
+#from numba.types import Tuple, UniTuple
+#from numba import jit, f8, i8
+#import MlsGroupDynamics_utilities as util
+#
+#
+
+NGroup = 20
+grpMat = 1*np.ones((4,NGroup,100,100))
+offspring = 100*np.ones((4,3,100,100))
+parrentNew = 101*np.zeros((4,100,100))
+
+for i in range(NGroup):
+    grpMat[:,i,:,:] = i
+    
+eventGroup = 5
 
 
-nBinOffsprSize = 100
-nBinOffsprFrac = 100    
-
-binsOffsprSize = np.linspace(0, 0.5, nBinOffsprSize+1)
-binsOffsprFrac = np.linspace(0, 1, nBinOffsprFrac+1)
-
-binCenterOffsprSize = (binsOffsprSize[1::]+binsOffsprSize[0:-1])/2
-binCenterOffsprFrac = (binsOffsprFrac[1::]+binsOffsprFrac[0:-1])/2
-
-
-def process_frame(data):
-    processedData = np.copy(data)
-    for ff in range(nBinOffsprFrac):
-        for ss in range(nBinOffsprSize):
-            toLow = binsOffsprFrac[ff] < binsOffsprSize[ss]
-            toHigh = binsOffsprFrac[ff] > (1-binsOffsprSize[ss+1])
-            isEmpty = data[ff,ss] == 0
-            if (toLow or toHigh) and isEmpty:
-                processedData[ff, ss] = np.nan
-    return processedData
-
-
-filename = 'evolution_Feb16_fisS2_cost0.01_muTy0.001_muSi0.1_muFr0.1_siIn0.5_frIn0.5_kInd2e+02_migR0.npz' 
-movieName = filename[:-4]+ '.mp4'
-figureName = filename[:-4]+ '.pdf'
-
-
-
-
-
-data_file = np.load(filename, allow_pickle=True)
-output = data_file['output']
-traitDistr = data_file['traitDistr']
-model_par = data_file['model_par']
-data_file.close()
-
-
-data = traitDistr[1, :, :]
-data = process_frame(data)
-
-maxValue = np.nanmax(data)
-
-
-cmap = matplotlib.cm.get_cmap(name='viridis')
-cmap.set_bad(color='black')
-
-fig = plt.figure()
-axs = plt.subplot(1, 1, 1)
-im = axs.imshow(data, cmap=cmap,
-                interpolation='nearest',
-                extent=[0, 0.5, 0, 1],
-                origin='lower',
-                vmin = 0,
-                vmax = maxValue,
-                aspect='auto')
-
-fig.subplots_adjust(0, 0, 1, 1)
-axs.axis("off")
-fig.set_size_inches(1, 1)
-plt.tight_layout()  # cleans up figure and aligns things nicely
-
-
-#init matrix to keep mutations inbounds
-offsprFracMatrix = np.zeros((nBinOffsprFrac, nBinOffsprSize),dtype=int)
-for ff in range(nBinOffsprFrac):
-    for ss in range(nBinOffsprSize):
-        offsprFracUp = binsOffsprFrac[1:]
-        offsprFracLow = binsOffsprFrac[:-1]
+def fission_group(parentGroup):   
+    #get group properties
+    offspr_size, offspr_frac, NCellPar = calc_mean_group_prop(parentGroup)
+    NCellPar = int(NCellPar)
+       
+    #calc number of offspring, draw from Poisson distribution
+    # <#offspring> = NCellToOffspr / sizeOfOffspr = offspr_frac / offspr_size
+    expectNOffspr = offspr_frac / offspr_size
+    # calc num cells per offsring
+    NCellPerOffspr = round(offspr_size * NCellPar)
+    #calc max num offspring group
+    maxNOffspr = int(np.floor(NCellPar / NCellPerOffspr))
+    
+    #draw number of offspring from truncated Poission distribution
+    NOffspr = util.truncated_poisson(expectNOffspr, maxNOffspr)
+    NCellToOffspr = NOffspr * NCellPerOffspr
+    
+    #assign cells to offspring
+    if NOffspr > 0:
+        matShape = parentGroup.shape
         
-        toLow = offsprFracUp[ff] < binsOffsprSize[ss]
-        toHigh = offsprFracLow[ff] > (1-binsOffsprSize[ss])
-        #decrease or increase offsprFracIdx till within bounds
-        if toHigh:
-            idx = np.arange(nBinOffsprFrac)
-            withinBounds = offsprFracLow < (1 - binsOffsprSize[ss])
-            offsprFracIdx = int(np.max(idx[withinBounds]))
-        elif toLow:
-            idx = np.arange(nBinOffsprFrac)
-            withinBounds = offsprFracUp > binsOffsprSize[ss]
-            offsprFracIdx = int(np.min(idx[withinBounds]))
-        else:
-            offsprFracIdx = ff
-        offsprFracMatrix[ff, ss] = int(offsprFracIdx)
+        #vector with destination index for all cells
+        #initialize to -1: stay with parent
+        destinationIdx = np.full(NCellPar, -1)
+        #assign indices 0 to N-1 for offspring
+        offsprIdx = np.kron(np.arange(NOffspr), np.ones(NCellPerOffspr))
+        destinationIdx[0:NCellToOffspr] = offsprIdx
         
+        #random shuffle matrix 
+        destinationIdx = np.random.permutation(destinationIdx)
         
-fig = plt.figure()
-axs = plt.subplot(1, 1, 1)
-im = axs.imshow(offsprFracMatrix, cmap=cmap,
-                interpolation='nearest',
-                extent=[0, 0.5, 0, 1],
-                origin='lower',
-                aspect='auto')
-
-fig.subplots_adjust(0, 0, 1, 1)
-axs.axis("off")
-fig.set_size_inches(1, 1)
-plt.tight_layout()  # cleans up figure and aligns things nicely        
+        #now identify all cells in parent group
+        #create vector with type idx, offspr_frac idx, offspr_size idx
+        parCellProp = np.ones((NCellPar, 3), dtype=int) #CHNAGE TO I8 FOR NUMBA
         
+        #find non zero elements
+        ttIDx, ffIdx, ssIdx = np.nonzero(parentGroup)
+        #loop all cells in parentgroup and store properties
+        idx = 0
+        for ii in range(ttIDx.size):
+            numCell = parentGroup[ttIDx[ii], ffIdx[ii], ssIdx[ii]]
+            while numCell>0:
+                parCellProp[idx, 0] = ttIDx[ii]
+                parCellProp[idx, 1] = ffIdx[ii]
+                parCellProp[idx, 2] = ssIdx[ii]
+                numCell -= 1
+                idx += 1
+    
+        #assign cells to offspring
+        #init offspring and parremt array
+        offspring = np.zeros((matShape[0], NOffspr, matShape[1], matShape[2]))
+        parrentNew = np.zeros((matShape[0], matShape[1], matShape[2]))
+        
+        for cc in range(NCellPar):
+            currDest = destinationIdx[cc]
+            if currDest == -1: #stays in parrent
+                parrentNew[parCellProp[cc,0],
+                           parCellProp[cc,1],
+                           parCellProp[cc,2]] += 1
+            else:
+                offspring[parCellProp[cc,0],
+                          currDest,
+                          parCellProp[cc,1],
+                          parCellProp[cc,2]] += 1
+    else:
+        #nothing happens
+        parrentNew = parentGroup
+        offspring = np.zeros((0, 0, 0, 0))
+                
+    return (parrentNew, offspring)
