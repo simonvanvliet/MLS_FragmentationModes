@@ -23,7 +23,6 @@ def set_fig_size_cm(fig, w, h):
     fig.set_size_inches(wInch, hInch)
     return None
 
-
 #convert list of results to 2D matrix of offspring frac. size vs fraction of parent to offspring
 def create_2d_matrix(offspr_sizeVec, offspr_fracVec, statData, fieldName):
     #get size of matrix
@@ -52,7 +51,16 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
     cstep    = settings['cstep']    if 'cstep'    in settings else 3
     xlabel   = settings['xlabel']   if 'xlabel'   in settings else ''
     ylabel   = settings['ylabel']   if 'ylabel'   in settings else ''
- 
+    cmap     = settings['cmap']     if 'cmap'     in settings else 'plasma'
+    cmap_bad = settings['cmap_bad'] if 'cmap_bad' in settings else 'black'
+    xmin     = settings['xmin']     if 'xmin'     in settings else xAxis.min()
+    xmax     = settings['xmax']     if 'xmax'     in settings else xAxis.max()
+    ymin     = settings['ymin']     if 'ymin'     in settings else yAxis.min()
+    ymax     = settings['ymax']     if 'ymax'     in settings else yAxis.max()
+    alpha    = settings['alpha']    if 'alpha'    in settings else 1
+
+    
+    
     #find max value 
     if 'roundTo' in settings:
         maxData = math.ceil(np.nanmax(dataMatrix) / settings['roundTo']) * settings['roundTo']
@@ -64,12 +72,12 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
     vmax = settings['vmax'] if 'vmax' in settings else maxData
     vmin = settings['vmin'] if 'vmin' in settings else minData
 
-    #plot heatmap
-    im = ax.pcolormesh(xAxis, yAxis, dataMatrix,
-                       cmap='plasma', vmin=vmin, vmax=vmax)
+    current_cmap = matplotlib.cm.get_cmap(cmap)
+    current_cmap.set_bad(color=cmap_bad)
     
-    current_cmap = matplotlib.cm.get_cmap()
-    current_cmap.set_bad(color='black')
+    #plot heatmap
+    im = ax.pcolormesh(xAxis, yAxis, dataMatrix, alpha=alpha,
+                       cmap=current_cmap, vmin=vmin, vmax=vmax)
     
     #add colorbar
     fig.colorbar(im, ax=ax, orientation='horizontal',
@@ -78,9 +86,8 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
                  fraction=0.5, pad=0.1)
 
     #make axis nice
-    xRange = (xAxis.min(), xAxis.max())
-    yRange = (yAxis.min(), yAxis.max())
-    steps = (3, 3)
+    xRange = (xmin, xmax)
+    yRange = (ymin, ymax)
     ax.set_xlim(xRange)
     ax.set_ylim(yRange)
     ax.set_xticks(np.linspace(*xRange, xstep))
@@ -89,6 +96,9 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
     # set labels
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    
+    if 'title' in settings:
+        ax.set_title(settings['title'])
     
     return None
 
@@ -185,6 +195,8 @@ def plot_mutational_meltdown(fig, ax, offSizeVec, offsFracVec, statData, plotDat
             #extract output value and assign to matrix
             if currId.sum() == 1:
                 dataMatrix[yy, xx] = np.asscalar(plotData[currId])
+            elif currId.sum() == plotSettings['NRepeat']:
+                dataMatrix[yy, xx] = np.nanmedian(plotData[currId])
             elif currId.sum()>0:
                 print('error, no unique value found')
 
@@ -194,3 +206,13 @@ def plot_mutational_meltdown(fig, ax, offSizeVec, offsFracVec, statData, plotDat
                 
     return dataMatrix
 
+def plot_time_data(axs, dataStruc, FieldName, type='lin'):
+    # linear plot
+    if type == 'lin':
+        axs.plot(dataStruc['time'], dataStruc[FieldName], label=FieldName)
+    # log plot
+    elif type == 'log':
+        axs.semilogy(dataStruc['time'], dataStruc[FieldName], label=FieldName)
+    # set x-label
+    axs.set_xlabel("time")
+    return None

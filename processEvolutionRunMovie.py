@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 27 11:15:00 2020
+Created on Thu Jan 23 10:54:31 2020
 
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
 
+import numpy as np
 import plotEvolutionMovie as evomo
 import MlsGroupDynamics_plotUtilities as pltutl
 from pathlib import Path
 import glob
-import numpy as np
 
 # set file and folder names
 fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Evolution"
 fig_FolderPath = Path(fig_Folder)
-baseName2D = 'evol2D_Feb26'
-baseNameEv = 'evolution_Feb26'
+baseName2D = 'evol2D_Feb28'
+baseNameEv = 'evolution_Feb28'
 
 # set variables to scan
-gr_SFis_vec = np.array([1])
-indv_K_vec = np.array([100])
+gr_SFis_vec = np.array([0, 0.1, 2, 8])
+indv_K_vec = np.array([50, 200])
+
 
 # set search for name
 for gr_SFis in gr_SFis_vec:
@@ -61,8 +62,11 @@ for gr_SFis in gr_SFis_vec:
                 traitDistr = data_file['traitDistr']
                 data_file.close()
                 
+                traitDistr = traitDistr[:,:,:]
+                
                 figureName = fileNameEv[:-4] + '.mp4'
                 movieDir = fig_FolderPath / figureName
             
                 evomo.create_movie(traitDistr[0::10, :, :], movieDir, 
                                    data_bg=data2D, fps=25, size=800)
+

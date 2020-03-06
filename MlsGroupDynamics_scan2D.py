@@ -17,83 +17,79 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
-import itertools
+
 import MlsGroupDynamics_main as mls
-import datetime
-from joblib import Parallel, delayed, parallel_backend
-import numpy as np
 from pathlib import Path
- 
+import datetime
+from joblib import Parallel, delayed
+import numpy as np
+#import plotParScan
 
 """============================================================================
 Define parameters
 ============================================================================"""
 
-numCore = 45 #number of cores to run code on
-numThread = 1 #number o threads per core
+override_data = False #set to true to force re-calculation
+numCoreDef = 40 #number of cores to run code on
+
 #where to store output?
 
-data_folder = Path(".")
-mainName = 'transect_March1'
 
+data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
+data_folder = Path(".")
+
+fig_Folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Figures/")
+mainName = 'scan2D_Jan23'
 
 #setup variables to scan
-perimeter_loc_vec = np.linspace(0,1,51)
-par0_vec = np.array([1e-3, 1e-2, 1e-1])
-par1_vec = np.array([1, 2, 3, 4])
-par2_vec = np.array([1e-3, 1e-2, 1e-1, 1, 10])
-parNames = ['indv_mutR', 'indv_NType', 'indv_migrR']
+offspr_sizeVec = np.arange(0.01, 0.5, 0.034)
+offspr_fracVec = np.arange(0.01, 1, 0.07) 
 
-K_tot_def = 30000
 
 #set other parameters
 model_par = {
         #time and run settings
         "maxT":             10000,  # total run time
-        "maxPopSize":       30000,  #stop simulation if population exceeds this number
-        "minT":             200,    # min run time
+        "maxPopSize":       20000,  #stop simulation if population exceeds this number
+        "minT":             250,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       400,    # average over this time window
         "rms_window":       400,    # calc rms change over this time window
         "rms_err_trNCoop":  1E-1,   # when to stop calculations
         "rms_err_trNGr":    5E-1,   # when to stop calculations
         # settings for initial condition
-        "init_groupNum":    10,     # initial # groups
+        "init_groupNum":    50,     # initial # groups
         "init_fCoop":       1,
-        "init_groupDens":   10,     # initial total cell number in group
+        "init_groupDens":   20,     # initial total cell number in group
         # settings for individual level dynamics
         # complexity
         "indv_NType":       2,
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
-        "indv_cost":        0.01,  # cost of cooperation
+        "indv_cost":        0.05,  # cost of cooperation
         "indv_mutR":        1E-3,   # mutation rate to cheaters
         "indv_migrR":       0,   # mutation rate to cheaters
         # group size control
-        "indv_K":           100,     # total group size at EQ if f_coop=1
+        "indv_K":           50,     # total group size at EQ if f_coop=1
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          1/100,
         'gr_SFis':          0,
+        'gr_CFis':          1/100,
         # extinction rate
-        'delta_grp':        0,      # exponent of denisty dependence on group #
-        'K_grp':            0,    # carrying capacity of groups
-        'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            K_tot_def,   # carrying capacity of total individuals
+        'delta_group':      1,      # exponent of denisty dependence on group #
+        'K_group':          1000,    # carrying capacity of groups
+        'delta_tot':        0,      # exponent of denisty dependence on total #indvidual
+        'K_tot':            4000,   # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.8,  # offspr_size < offspr_frac < 1-offspr_size'
-        # extra settings
-        'run_idx':          1,
-        'perimeter_loc':    0
+        'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
     }
 
 
-"""============================================================================
-Define functions
-============================================================================"""
+
+
 
 
 parNameAbbrev = {
@@ -112,17 +108,22 @@ parNameAbbrev = {
                 'K_grp'         : 'kGrp', 
                 'K_tot'         : 'kTot',
                 'model_mode'    : 'mode',
-                'slope_coef'    : 'sCof',
-                'perimeter_loc' : 'pLoc',
-                'run_idx'       : 'idxR'}
+                'slope_coef'    : 'sCof'}
+
+
+
+
+"""============================================================================
+Define functions
+============================================================================"""
 
 
 def create_data_name(mainName, model_par):
-    parListName = ['indv_cost', 'indv_migrR',
+    parListName = ['indv_cost', 'indv_mutR', 'indv_migrR',
                    'indv_K', 'K_grp', 'K_tot',
-                   'indv_asymmetry',
+                   'indv_NType', 'indv_asymmetry',
                    'delta_indv','delta_grp','delta_tot','delta_size',
-                   'gr_CFis']
+                   'gr_CFis','gr_SFis']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
@@ -131,65 +132,54 @@ def create_data_name(mainName, model_par):
     
     return dataFileName
 
-
 #set model parameters for fission mode
-def set_fission_mode(perimeter_loc, par0, par1, par2, parNames):
+def set_fission_mode(model_par, offspr_size, offspr_frac):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
-
-    if perimeter_loc <= 0.5:
-        offspr_size = perimeter_loc
-        offspr_frac = 1 - offspr_size
-    else:
-        offspr_size = 1 - perimeter_loc
-        offspr_frac = offspr_size
-        
-    model_par_local['perimeter_loc'] = perimeter_loc
     model_par_local['offspr_size'] = offspr_size
     model_par_local['offspr_frac'] = offspr_frac
-    model_par_local[parNames[0]] = par0
-    model_par_local[parNames[1]] = par1
-    model_par_local[parNames[2]] = par2
-    
-    if model_par_local['gr_SFis'] == 0:
-       model_par_local['K_tot']  = K_tot_def * 6
-    else:
-        model_par_local['K_tot'] = K_tot_def
-        
     return model_par_local
 
+
 # run model
-def run_model():
-    #create model paremeter list for all valid parameter range
-    # *x unpacks variables stored in tuple x e.g. if x = (a1,a2,a3) than f(*x) = f(a1,a2,a3)
-    # itertools.product creates all possible combination of parameters
-    modelParList = [set_fission_mode(*x, parNames)
-                    for x in itertools.product(*(perimeter_loc_vec, par0_vec, par1_vec, par2_vec))]
+def run_model(mainName, model_par, numCore, 
+              offspr_sizeVec=offspr_sizeVec, 
+              offspr_fracVec=offspr_fracVec):
+   #create model paremeter list for all valid parameter range
+    modelParList = []
+    for offspr_size in offspr_sizeVec:
+        for offspr_frac in offspr_fracVec:
+            if offspr_frac >= offspr_size and offspr_frac <= (1 - offspr_size):
+                modelParList.append(set_fission_mode(model_par, offspr_size, offspr_frac))
 
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
+    results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
+        delayed(mls.single_run_finalstate)(par) for par in modelParList)
 
-    with parallel_backend("loky", inner_max_num_threads=numThread):
-        results = Parallel(n_jobs=nJobs, verbose=10, timeout=1.E8)(
-            delayed(mls.single_run_finalstate)(par) for par in modelParList)
-        
-        
+    # process and store output
+    Output, endDistFCoop, endDistGrSize = zip(*results)
+    statData = np.vstack(Output)
+    distFCoop = np.vstack(endDistFCoop)
+    distGrSize = np.vstack(endDistGrSize)
+
+    #store output to disk
+    
     dataFileName = create_data_name(mainName, model_par)
-    dataFilePath = data_folder / (dataFileName + '.npz')    
-    
-    np.savez(dataFilePath, results=results,
-             perimeter_loc_vec = perimeter_loc_vec,
-             par0_vec = par0_vec,
-             par1_vec = par1_vec,
-             par2_vec = par2_vec,
-             parNames = parNames,
-             modelParList = modelParList, 
-             date = datetime.datetime.now())
-    
-    return None
+    dataFilePath = data_folder / (dataFileName + '.npz')
+    np.savez(dataFilePath, statData=statData, distFCoop=distFCoop, distGrSize=distGrSize,
+             offspr_sizeVec=offspr_sizeVec, offspr_fracVec=offspr_fracVec,
+             modelParList=modelParList, date=datetime.datetime.now())
+
+    return (statData, distGrSize)
+
 
 #run parscan and make figure
 if __name__ == "__main__":
-    run_model()
+    statData = run_model(mainName, model_par, 4)
+    #plotParScan.make_fig(dataFileName)
+
+
+
 

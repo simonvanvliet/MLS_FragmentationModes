@@ -23,7 +23,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'MutationMeltdown_Feb17_kInd1e+02_fisC0.01_kTot2e+04_nTyp2_asym1.npz'
+fileName = 'MutationMeltdown_Feb18_kInd1e+02_fisC0.01_kTot3e+04_nTyp2_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 data_folder = Path(".")
@@ -107,15 +107,16 @@ def make_fig(fileName, pathSave=fig_folder, pathLoad=data_folder):
     fig = plt.figure()
     pltutl.set_fig_size_cm(fig, 30, 20)
     
-    plotData = np.median(np.log10(maxMu), axis=1)
+    plotData = np.log10(maxMu.reshape((-1,1)))
     
     plotSettings = {
       'vmin'    :   np.min(np.log10(mutR)),
       'vmax'    :   np.max(np.log10(mutR)),
-      'cstep'   :   4,
+      'cstep'   :   6,
       'dataName':   'max mutation rate',
       'xlabel'  :   'offspring size (frac.)',
       'ylabel'  :   'offspring frac. to parent',
+      'NRepeat' :   maxMu.shape[1]
     }
     
    #plot variables

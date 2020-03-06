@@ -86,8 +86,8 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
 
     # plot number of groups
     plt.subplot(nR, nC, 1)
-    plot_data(output, "NGroup")
-    plot_data(output, "NGroup_mav")
+    plot_data(output, "NGrp")
+    plot_data(output, "NGrp_mav")
 
     plt.ylabel("# group")
     plt.legend()
@@ -110,7 +110,7 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
     # plot rms error
     plt.subplot(nR, nC, 4)
     plot_data(output, "rms_err_NCoop",type='log')
-    plot_data(output, "rms_err_NGroup",type='log')
+    plot_data(output, "rms_err_NGrp",type='log')
     plt.legend()
     plt.ylabel("rms error")
     

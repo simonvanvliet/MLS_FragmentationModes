@@ -416,53 +416,91 @@ def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
 
     return None
 
+    
+@jit(Tuple((i8[:],i8))(f8, f8, i8), nopython=True)
+def distribute_offspring(offspr_size, offspr_frac, NCellPar):
+    #vector with destination index for all cells
+    #initialize to -1: stay with parent
+    destinationIdx = np.full(NCellPar, -1)
+        
+    # calc expected values
+    nPerOff_expect = offspr_size * NCellPar
+    nToOff_expect = offspr_frac * NCellPar
+    
+    #draw total number of cells passed to offspring from Poisson distribution
+    nToOff = util.truncated_poisson(nToOff_expect, NCellPar)
+    
+    if nToOff > 0 and nPerOff_expect>0: 
+        #draw size of offspring groups from truncated Poisson
+        #min group size is 1, max is nToOff
+        nPerOff = max(1, util.truncated_poisson(nPerOff_expect, nToOff))
+
+        #first process full offspring
+        nOffFull = int(np.floor(nToOff/nPerOff))
+        nToOffFull = nOffFull*nPerOff
+        destinationIdx[0:nToOffFull] = np.kron(np.arange(nOffFull), np.ones(nPerOff))
+        #assign remaining cell to last offspring group
+        destinationIdx[nToOffFull:nToOff] = nOffFull
+        
+        nOffspring = nOffFull        
+        if nToOffFull < nToOff:
+            nOffspring += 1
+          
+        # cellsLeft = nToOff
+        # endIdx = 0
+        # nOffspring = 0  
+        #create groups, size is drawn from truncated Poisson distribution
+        #continue till all cells are assigned to offspring group
+        # while cellsLeft > 0:
+        #     nCurrOff = util.truncated_poisson(nPerOff_expect, cellsLeft)
+        #     if nCurrOff > 0:
+        #         nOffspring += 1
+        #         cellsLeft -= nCurrOff
+        #         startIdx = endIdx
+        #         endIdx = startIdx + nCurrOff
+        #         destinationIdx[startIdx:endIdx] = nOffspring-1
+        
+        #random shuffle matrix 
+        destinationIdx = np.random.permutation(destinationIdx)
+    else:
+        nOffspring = 0
+    
+    return (destinationIdx, nOffspring)
 
 @jit(Tuple((f8[::1],f8[:, ::1]))(f8[::1], f8, f8), nopython=True)
-def fission_group(parentGroup, offspr_size, offspr_frac):        
-    #number of cells in parents
-    cellNumPar = parentGroup.sum()
-   
-    #calc number of offspring, draw from Poisson distribution
-    # <#offspring> = numCellsToOffspr / sizeOfOffspr
-    # = offspr_frac * cellNumPar / offspr_size * cellNumPar
-    # = offspr_frac / offspr_size
-    expectedNumOffSpr = offspr_frac / offspr_size
-    numOffSpr = int(np.random.poisson(expectedNumOffSpr))
-    #calc total number of cells passed on to offspring, keep at least 1 cell in parent
-    numCellsToOffspr = int(min(round(offspr_frac * cellNumPar), cellNumPar-1))
-
-    #assign cells to offspring
-    if numOffSpr > 0:
-        parrentPool = parentGroup
-        #init offspring array
-        offspring = np.zeros((parentGroup.size, numOffSpr))
-
-        #perform random sampling
-        randMat = util.create_randMat(numCellsToOffspr, 1)
-
-        for ii in range(numCellsToOffspr):
-            #randomly pick cell from parent using weighted lottery
-            typePicked = util.select_random_event(parrentPool, randMat[ii, 0])
-            #deal round the table: select offsping to assign cell to
-            offspringPicked = ii % numOffSpr 
-            #assign cell to offspring
-            offspring[typePicked, offspringPicked] += 1
-            #remove cell from parent
-            parrentPool[typePicked] -= 1
+def fission_group(parentGroup, offspr_size, offspr_frac): 
+    #get group properties
+    NCellPar = int(parentGroup.sum())
+    matShape = parentGroup.shape
+    #distribute cells   
+    destinationIdx, nOffspring = distribute_offspring(offspr_size, 
+                                                      offspr_frac, 
+                                                      NCellPar)
+    if  nOffspring>0:   
+        #init offspring and parremt array
+        offspring = np.zeros((matShape[0], nOffspring))
+        parrentNew = np.zeros(matShape[0])
         
-        #remove empty daughter groups
-        numCellInOffspr = offspring.sum(0)
-        offspring = offspring[:, numCellInOffspr > 0]
-
-        #update parent to new state
-        parrentNew = parrentPool
+        #find non zero elements
+        ttIDxTuple = np.nonzero(parentGroup)
+        ttIDxVec = ttIDxTuple[0]
+        #loop all cells in parentgroup and assign to new group
+        idx = 0
+        for ttIDx in ttIDxVec:
+            numCell = parentGroup[ttIDx]
+            while numCell>0:
+                currDest = destinationIdx[idx]
+                if currDest == -1: #stays in parrent
+                    parrentNew[ttIDx] += 1
+                else:
+                    offspring[ttIDx, currDest] += 1
+                numCell -= 1
+                idx += 1
     else:
         #nothing happens
         parrentNew = parentGroup
-        offspring = np.zeros((parentGroup.size, 1))
-            
+        offspring = np.zeros((0, 0))       
     return (parrentNew, offspring)
-
 
 # process individual level events
 @jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8), nopython=True)
@@ -488,12 +526,14 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac):
             parrentNew, offspring = fission_group(parentGroup, offspr_size, offspr_frac)
 
             # only add daughter if not empty
-            if offspring.sum() > 0:
-                # update parrent
-                groupMat[:, eventGroup] = parrentNew
+            if offspring.size > 0:                
+                if parrentNew.sum() > 0: # update parrent
+                    groupMat[:, eventGroup] = parrentNew
+                else: #remove parrent
+                    groupMat, NGrp = remove_group(groupMat, eventGroup)
                 # add new daughter group
-                groupMat = np.column_stack((groupMat, offspring))
-    
+                groupMat = np.column_stack((groupMat, offspring))    
+            
             NGrp = groupMat.shape[1]
 
     else:
@@ -513,8 +553,6 @@ def create_helper_vector(NGrp, NType):
     grpRate = np.ones(2 * NGrp)
 
     return(onesGrp, onesIndR, onesGrpR, indvRate, grpRate)
-
-#calc group properties
 
 
 # calc total number of individuals per group, use matrix product for speed
@@ -752,7 +790,7 @@ def single_run_finalstate(model_par):
                'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
                'gr_SFis', 'gr_CFis', 'K_grp', 'K_tot', 
                'delta_grp', 'delta_tot', 'delta_size',
-               'offspr_size','offspr_frac','run_idx']
+               'offspr_size','offspr_frac','run_idx','perimeter_loc']
                                                         
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
@@ -762,7 +800,7 @@ def single_run_finalstate(model_par):
     dTypeList1 = [(x, 'f8') for x in stateVarPlus]
     dTypeList2 = [(x+'_mav', 'f8') for x in stateVarPlus]
     dTypeList3 = [(x, 'f8') for x in parList]
-    dTypeList = dTypeList1 + dTypeList2 + dTypeList3 + [('run_time', 'f8')] + [('perimeter_loc', 'f8')]
+    dTypeList = dTypeList1 + dTypeList2 + dTypeList3 + [('run_time', 'f8')]
     dType = np.dtype(dTypeList)
 
     output_matrix = np.zeros(1, dType)
@@ -776,13 +814,6 @@ def single_run_finalstate(model_par):
     for par in parList:
         output_matrix[par] = model_par[par]
         
-        
-    offsprSize = model_par['offspr_size'] 
-    offsprFrac = model_par['offspr_frac']     
-    
-    perimeter_loc = offsprSize if offsprFrac>=0.5 else 1-offsprSize
-    
-    output_matrix['perimeter_loc'] = perimeter_loc   
     output_matrix['run_time'] = end - start   
 
     endDistFCoop = distFCoop[-1,:]
@@ -798,7 +829,7 @@ if __name__ == "__main__":
     model_par = {
         #        #time and run settings
          #time and run settings
-        "maxT":             50,  # total run time
+        "maxT":             100,  # total run time
         "maxPopSize":       10000,  #stop simulation if population exceeds this number
         "minT":             1,    # min run time
         "sampleInt":        1,      # sampling interval
@@ -807,9 +838,9 @@ if __name__ == "__main__":
         "rms_err_trNCoop":  1E-51,   # when to stop calculations
         "rms_err_trNGr":    5E-51,   # when to stop calculations
         # settings for initial condition
-        "init_groupNum":    10,     # initial # groups
+        "init_groupNum":    300,     # initial # groups
         "init_fCoop":       1,
-        "init_groupDens":   10,     # initial total cell number in group
+        "init_groupDens":   20,     # initial total cell number in group
         # settings for individual level dynamics
         # complexity
         "indv_NType":       2,

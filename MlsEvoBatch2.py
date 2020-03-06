@@ -11,22 +11,22 @@ import MlsGroupDynamics_evolve_fast as mls
 import numpy as np
 from joblib import Parallel, delayed
 
-mainName = 'evolution_March4'
-numCore = 40;
+mainName = 'evolution_Feb27'
+numCore = 10;
 
 
-gr_Sfission_Vec = np.array([0, 0.1, 2, 8])
-indv_KVec = np.array([50, 200])
+gr_Sfission_Vec = np.array([0, 1])
+indv_KVec = np.array([100])
 init_Aray = np.array([[0.05,0.05],[0.05,0.5],[0.05,0.95],[0.25,0.5],[0.45,0.5]])
 numInit = init_Aray.shape[0]
-K_tot_def = 10000
+K_tot_def = 5000
 
 model_par = {
     #time and run settings
     "maxPopSize":       0,
-    "maxT":             100000,   # total run time
-    "minT":             10000,   # min run time
-    "sampleInt":        200,      # sampling interval
+    "maxT":             2500,   # total run time
+    "minT":             2500,   # min run time
+    "sampleInt":        20,      # sampling interval
     "mav_window":       100,    # average over this time window
     "rms_window":       100,    # calc rms change over this time window
     "rms_err_trNCoop":  0,   # when to stop calculations
@@ -44,15 +44,14 @@ model_par = {
     "indv_migrR":       0,   # mutation rate to cheaters
     # set mutation rates
     'mutR_type':        1E-3,
-    'mutR_size':        1E-2, 
-    'mutR_frac':        1E-2, 
-    'tau'      :        0.1,
+    'mutR_size':        0, 
+    'mutR_frac':        0, 
     # group size control
     "indv_K":           100,     # total group size at EQ if f_coop=1
     "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
     # setting for group rates
     # fission rate
-    'gr_CFis':          1/100,
+    'gr_CFis':           1/100,
     'gr_SFis':          2,
     # extinction rate
     'delta_grp':        0,      # exponent of denisty dependence on group #
@@ -78,16 +77,16 @@ def set_model_par(settings):
 modelParList = []
 
 def run_batch():
-    for gr_SFis in gr_Sfission_Vec:
+    for gr_Sfission in gr_Sfission_Vec:
         for indv_K in indv_KVec:
             for ii in range(numInit):
                                 
-                if gr_SFis == 0:
-                    K_tot = K_tot_def * 10
+                if gr_Sfission == 0:
+                    K_tot = K_tot_def * 6
                 else:
                     K_tot = K_tot_def
                     
-                settings = {'gr_SFis' : gr_SFis,
+                settings = {'gr_SFis' : gr_Sfission,
                             'indv_K' : indv_K,
                             'K_tot'  : K_tot,
                             'offspr_sizeInit': init_Aray[ii, 0],

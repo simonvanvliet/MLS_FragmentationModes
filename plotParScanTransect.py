@@ -24,7 +24,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load
-fileName = 'transact_Feb10_cost0.01_migR0_kInd1e+02_kGrp0_kTot2e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
+fileName = 'transect_Feb28_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
 
 #set Folder
 data_folder = Path(".")
@@ -88,32 +88,38 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     loadName = pathLoad / (fileName + '.npz')
     data_file = np.load(loadName, allow_pickle=True)
     results = data_file['results']
-    type_vec = data_file['type_vec']
-    mu_vec = data_file['mu_vec']
-    slope_vec = data_file['slope_vec']
+    par0_vec = data_file['par0_vec']
+    par1_vec = data_file['par1_vec']
+    par2_vec = data_file['par2_vec']
+    parNames = data_file['parNames']
+    modelParList = data_file['modelParList']
+    perimeter_loc_vec = data_file['perimeter_loc_vec']
     data_file.close()
     
     Output, _, _ = zip(*results)
     
     stateVar = ['NTot', 'NCoop', 'fCoop',
-            'NGroup', 'groupSizeAv', 'groupSizeMed']
+            'NGrp', 'groupSizeAv', 'groupSizeMed']
     
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 'indv_mutR', 'indv_migrR', 'indv_asymmetry', 'delta_indv',
-               'gr_Sfission', 'gr_Cfission', 'K_grp', 'K_tot', 'delta_grp', 'delta_tot', 'delta_size',
+               'gr_SFis', 'gr_CFis', 'K_grp', 'K_tot', 'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size', 'offspr_frac', 'run_time']
 
     # init output matrix
     dTypeList1 = [(x, 'f8') for x in stateVar]
     dTypeList2 = [(x+'_mav', 'f8') for x in stateVar]
     dTypeList3 = [(x, 'f8') for x in parList]
-    dTypeList = dTypeList1 + dTypeList2 + dTypeList3
+    dTypeList = dTypeList1 + dTypeList2 + dTypeList3 + [('perimeter_loc', 'f8')]
     dType = np.dtype(dTypeList)
     statData = np.zeros(len(Output), dType)
 
     # store final state
     i = 0
     for data in Output:
+        OffsprFrac = data['offspr_frac']
+        OffsprSize = data['offspr_size']
+        statData['perimeter_loc'][i] = OffsprSize if OffsprFrac >=0.5 else (1-OffsprSize)
         for var in stateVar:
             statData[var][i] = data[var]
             var_mav = var + '_mav'
@@ -132,7 +138,7 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     #    'NGroup', 'groupSizeAv', 'groupSizeMed'
     #add _mav to get moving average value    
 
-    parToPlot = ['NTot_mav', 'fCoop_mav', 'NGroup_mav']
+    parToPlot = ['NTot_mav', 'fCoop_mav', 'NGrp_mav','groupSizeAv']
 
     for curPar in parToPlot:
     
@@ -140,29 +146,30 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
         pltutl.set_fig_size_cm(fig, 60, 40)
         
         #plot variables
-        nC = slope_vec.size
-        nR = type_vec.size
+        nC = par2_vec.size
+        nR = par1_vec.size
 
         #loop over all variable parameters
-        for rr in range(type_vec.size):
-            for cc in range(slope_vec.size):
+        for rr in range(par1_vec.size):
+            for cc in range(par2_vec.size):
                 index1 = rr * nC + cc + 1
 
                 #create subplot for each combination of assymetry, # type, and tau
                 ax1 = plt.subplot(nR, nC, index1)
 
-                titleName = 'NType=%i, Sfis=%.0g' % (
-                    type_vec[rr], slope_vec[cc])
+                titleName = '%s=%i, %s=%.g' % (
+                    parNames[1], par1_vec[rr], 
+                    parNames[2], par2_vec[cc])
             
-                for mm in range(1): #mu_vec.size):
+                for mm in range(par0_vec.size):
                     #plot all different values of mu in same subplot
                     #set parameters for current curve to extract
                     keyDict = {
-                        'indv_NType': type_vec[rr],
-                        'gr_Sfission': slope_vec[cc],
-                        'indv_mutR': mu_vec[mm],
+                        parNames[0]: par0_vec[mm],
+                        parNames[1]: par1_vec[rr],
+                        parNames[2]: par2_vec[cc]
                     }
-                    dataName = 'mu=%.0g' % mu_vec[mm]
+                    dataName = '%s=%.0g' % (parNames[0], par0_vec[mm])
                     #plot data
                     pltutl.plot_transect(
                         fig, ax1, statData, 'perimeter_loc', curPar, keyDict, dataName)

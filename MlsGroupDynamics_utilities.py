@@ -27,6 +27,15 @@ ndtri_fn = functype(addr)
 """
  General functions
 """
+@jit(UniTuple(i8,2)(i8, UniTuple(i8,2)), nopython=True)
+def flat_to_2d_index(flatIndex, shape):
+    """
+    converts flattend index to 2D indices for 'C' order arrays
+    warning: no error checking, only use if you are sure input is C array
+    """    
+    idx0 = int(np.floor(flatIndex / shape[1]))
+    idx1 = int(flatIndex % shape[1])
+    return (idx0, idx1)
 
 @jit(UniTuple(i8,3)(i8, UniTuple(i8,3)), nopython=True)
 def flat_to_3d_index(flatIndex, shape):
@@ -35,15 +44,11 @@ def flat_to_3d_index(flatIndex, shape):
     warning: no error checking, only use if you are sure input is C array
     """
     nPlane = shape[1]*shape[2]
-    
     idx0 = int(np.floor(flatIndex / nPlane))
     idx12 = flatIndex % nPlane
-    
     idx1 = int(np.floor(idx12 / shape[2]))
     idx2 = int(idx12 % shape[2])
-    
     return (idx0,idx1,idx2)
-
 
 # %%random sample based on propensity
 @jit(i8(f8[:], f8), nopython=True)
@@ -59,7 +64,7 @@ def select_random_event(propensity_vec, randNum):
     return id_group
 
 # %%random sample based on propensity
-@jit(i8(f8[:, :], f8), nopython=True)
+@jit(UniTuple(i8,2)(f8[:, :], f8), nopython=True)
 def select_random_event_2D(propensity_vec, randNum):
     # calculate cumulative propensities
     cumPropensity = propensity_vec.cumsum()
@@ -69,7 +74,9 @@ def select_random_event_2D(propensity_vec, randNum):
     index = np.arange(cumPropensity.size)
     # select group
     id_group = index[(cumPropensity > randNumScaled)][0]
-    return id_group
+    idx = flat_to_2d_index(id_group, propensity_vec.shape)
+    
+    return idx
 
 # %%random sample based on propensity
 @jit(i8(f8[:, :, :], f8), nopython=True)

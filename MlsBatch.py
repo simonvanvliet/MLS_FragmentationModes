@@ -14,9 +14,12 @@ mainName = 'scan2D_Jan27'
 
 model_mode_Vec = np.arange(4)
 cost_Vec = np.array([0.01])
-Kindv_Vec = np.array([100])
+Kindv_Vec = np.array([50, 200])
 mu_Vec = np.array([1E-3])
-slope_coef_Vec = np.array([0.5, 1, 2])
+slope_coef_Vec = np.array([0, 0.1, 2, 8])
+
+
+
 
 K_group_def = 1500
 K_tot_def = 90000

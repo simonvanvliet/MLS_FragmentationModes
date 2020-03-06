@@ -130,8 +130,12 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
     
     #plot number of groups
     ax = plt.subplot(nR, nC, 4)
-    pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
-                        offspr_fracVec, statData, 'NGroup_mav', 5)
+    try:
+        pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
+                            offspr_fracVec, statData, 'NGroup_mav', 5)
+    except:
+        pltutl.plot_heatmap(fig, ax, offspr_sizeVec,
+                            offspr_fracVec, statData, 'NGrp_mav', 5)
     
     #plot mean group size
     ax = plt.subplot(nR, nC, 5)
