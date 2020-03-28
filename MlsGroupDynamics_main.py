@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Oct 15 2019
+Last Update March 28 2020
 
-Last Update Oct 22 2019
+Implements main MLS model of group dynamics (no evolution)
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -24,11 +25,9 @@ import numpy as np
 import MlsGroupDynamics_utilities as util
 import time
 
-
 #output variables to store
 stateVar = ['NTot', 'NCoop', 'fCoop',
             'NGrp', 'groupSizeAv', 'groupSizeMed','GrpDeaths','GrpBirths','GrpNetProd']
-
 
 
 """============================================================================
@@ -38,10 +37,12 @@ Init functions
 
 # initialize output matrix
 def init_output_matrix(model_par):
+    # get parameters
     sampleInt = model_par['sampleInt']
     maxT = model_par['maxT']
     numTSample = int(np.ceil(maxT / sampleInt) + 1)
     
+    #create list of state variables to store
     addVar = ['rms_err_NCoop', 'rms_err_NGrp', 'time','GrpDeathsCumul','GrpBirthsCumul']
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
@@ -282,7 +283,7 @@ def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, N
             #vector of ones with size NGrp
             coopPart = np.ones(NGrp)
             for pp in range(NType):
-                if pp != tt: #exlude self
+                if pp != tt: #exclude self
                     coopPart *= groupMat[pp*2, :] / grSizeVec
                 
         # calc rates
@@ -391,20 +392,22 @@ def remove_group(groupMat, groupDeathID):
 
     # copy remaining groups to new matrix
     groupMat = groupMat[:, hasDied == 0]
-
     NGrp -= 1
 
     return (groupMat, NGrp)
 
 
 # calculate fission and extinction rate of all groups
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
 def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp, 
-    gr_CFis, gr_SFis, K_grp, K_tot,
+    gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
     delta_grp, delta_tot, delta_size):
 
     # calc fission rate
-    fissionR = grSizeVec * gr_SFis + gr_CFis
+    if alpha_Fis != 1:
+        fissionR = (grSizeVec ** alpha_Fis) * gr_SFis + gr_CFis
+    else:
+        fissionR = grSizeVec * gr_SFis + gr_CFis
   
     # calc extinction rate
     if delta_grp != 0:
@@ -535,8 +538,8 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
                     NDGrp += 1
                 # add new daughter group
                 groupMat = np.column_stack((groupMat, offspring))
+                NBGrp += nOffspring
     
-            
             NGrp = groupMat.shape[1]
 
     else:
@@ -544,7 +547,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
         groupMat, NGrp = remove_group(groupMat, eventGroup)
         NDGrp += 1
 
-    return (groupMat, NGrp, nOffspring)
+    return (groupMat, NGrp, NBGrp, NDGrp)
 
 
 # create helper vectors for dot products
@@ -630,9 +633,10 @@ def run_model(model_par):
     else:
         indv_tau = 1
         
-    #get group fission rates
+    #get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / indv_K
+    alpha_Fis  = float(model_par['alpha_Fis'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -704,7 +708,7 @@ def run_model(model_par):
         
         # calc rates of group events
         calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
-                        gr_CFis, gr_SFis, K_grp, K_tot,
+                        gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
                         delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
@@ -737,11 +741,9 @@ def run_model(model_par):
                 groupsHaveChanged = True
         else:
             # group level event - select and process group level event
-            groupMat, NGrp, nOffspring = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
+            groupMat, NGrp, NBGrp, NDGrp = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
                                                  offspr_size, offspr_frac, NBGrp, NDGrp)
             groupsHaveChanged = True
-            NBGrp += nOffspring
-
 
         if groupsHaveChanged:
             if NGrp == 0:  # if all groups have died, end simulation
@@ -794,22 +796,35 @@ def run_model(model_par):
 Code that calls model and plots results
 ============================================================================"""
 
-# code to plot data
-# set type to "lin" or "log" to switch between lin or log plot
-
 #run model store only final state 
 def single_run_finalstate(model_par):
+    """[Runs MLS model and stores final state]
+    
+    Parameters
+    ----------
+    model_par : [Dictionary]
+        [Stores model parameters]
+    
+    Returns
+    -------
+    output_matrix : [Numpy recarray]
+        [Contains steady state values of system variables and parameters]
+    endDistFCoop : [Numpy ndarray]
+        [Contains steady state distribution of frequency of cooperators]
+    endDistGrSize : [Numpy ndarray]
+        [Contains steady state distribution of group sizes]
+        
+    """    
     # run model
     
     start = time.time()
     output, distFCoop, distGrSize = run_model(model_par)    
     end = time.time()
-
  
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 
                'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
-               'gr_SFis', 'gr_CFis', 'K_grp', 'K_tot', 
+               'gr_SFis', 'gr_CFis', 'alpha_Fis', 'K_grp', 'K_tot',
                'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size','offspr_frac','run_idx','perimeter_loc']
                                                         
@@ -877,6 +892,7 @@ if __name__ == "__main__":
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          1/50,
+        'alpha_Fis':        1,
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,    # carrying capacity of groups

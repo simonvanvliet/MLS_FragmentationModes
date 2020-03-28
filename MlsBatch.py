@@ -5,6 +5,7 @@ Created on Tue Jan 21 16:58:05 2020
 
 Code runs multiple 2D parameter space scans, each run is stored on disk independently
 Results can be plotted using plotParScan
+Has been succeeded by MlsGroupDynamics_scanStates, use this only together with MlsEvoBatch
 
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca

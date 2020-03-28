@@ -5,6 +5,9 @@ Created on Tue Oct 23 2019
 
 Last Update Oct 23 2019
 
+Plots output of MlsGroupDynamics_scanStates
+
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia

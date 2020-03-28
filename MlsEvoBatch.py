@@ -5,6 +5,7 @@ Created on Tue Jan 21 16:58:05 2020
 
 Code runs multiple evolution run, each run is stored on disk independently
 Results can be plotted using plotEvolutionBatch an plotEvolutionBatchMovie
+Use MlsBatch with same settings to create reference parameter space scans
 
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca

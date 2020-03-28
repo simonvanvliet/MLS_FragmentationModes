@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Oct 15 2019
+Last Update March 28 2020
 
-Last Update Oct 22 2019
+Implements main MLS model of group dynamics with evolution of individual traits
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -75,7 +76,7 @@ for ff in range(nBinOffsprFrac):
 Init functions 
 ============================================================================"""
 
-
+#enlarges 4D group trait matrix incase there are not enough empty spaces for new groups
 @jit(Tuple((f8[:, :, :, ::1], f8[::1]))(f8[:, :, :, ::1], f8[::1]), nopython=True)
 def expand_grpMat(grpMat, grpLUT):
     matShape = grpMat.shape
@@ -119,6 +120,16 @@ def init_outputMat_matrix(model_par):
 # initialize group matrix
 # each column is a group and lists number of [A,A',B,B'] cells
 def init_grpMat(model_par):
+    # grpMat is 4D matrix of:
+    #   [cell type / group id / fraction cells to offspring / fractional size of offspring]
+    # grpMat2D is 2D matrix of:
+    #   [cell type / group id]
+    # grpLUT maps location of group i within 4D grpMat to location of group i in 2D grpMat2D
+    #   grpLUT[i] is column index of group i within grpMat2D
+    #   np.nan indicates unassigned groups
+    #   to go from group j (column index) in grpMat2D to index i in 4D grpMat use:
+    #   i = np.nonzero(grpLUT==j)
+    
     #get properties
     NGroup = int(model_par["init_groupNum"])
     NType = int(model_par['indv_NType'])
@@ -152,17 +163,12 @@ def init_grpMat(model_par):
     # set group prop
     grpMat[0::2, 0:NGroup, offspr_frac_idx, offspr_size_idx] = nCoop
     grpMat[1::2, 0:NGroup, offspr_frac_idx, offspr_size_idx] = nDef
-    
-    #grpLUT maps location of group i within 4D grpMat to location of group i in 2D grpMat2D
-    #grpLUT[i] is column index of group i within grpMat2D
-    #np.nan indicates unassigned groups
-    #to go from group j (column index) in grpMat2D to index i in 4D grpMat use:
-    # i = np.nonzero(grpLUT==j)
-    grpLUT = np.full(sizeGroupMatInit, np.nan)
-    grpLUT[0:NGroup] = np.arange(NGroup)
-        
     grpMat2D[0::2, :] = nCoop
     grpMat2D[1::2, :] = nDef
+    
+    #create group LUT to connect 4D and 2D matrices
+    grpLUT = np.full(sizeGroupMatInit, np.nan)
+    grpLUT[0:NGroup] = np.arange(NGroup)
 
     return (grpMat, grpMat2D, grpLUT)
 
@@ -578,6 +584,7 @@ def run_model(model_par):
     # get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / indv_K
+    alpha_Fis  = float(model_par['alpha_Fis'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -636,7 +643,7 @@ def run_model(model_par):
         
         # calc rates of group events
         mls.calc_group_rates(grpRate, grpMat2D, grSizeVec, NTot, NGroup,
-                            gr_CFis, gr_SFis, K_grp, K_tot,
+                            gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
                             delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
@@ -715,7 +722,7 @@ def single_run_save(model_par, mainName):
         
         mainName {[string]} -- [filename for data file, appended with parameter settings]
     Returns:
-        [numpy array] -- [trait distribution at last timepoint]
+        [numpy 2D array] -- [trait distribution at last timepoint]
     """
     #create file name, append mainName with parameter settings
     parNameAbbrev = {
@@ -725,6 +732,7 @@ def single_run_save(model_par, mainName):
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -795,6 +803,7 @@ if __name__ == "__main__":
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          4,
+        'alpha_Fis':        1,
         'indv_tau':         0.1,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #

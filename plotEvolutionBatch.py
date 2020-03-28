@@ -3,6 +3,8 @@
 """
 Created on Thu Jan 23 10:54:31 2020
 
+Plots a batch of evolution runs created with MlsEvoBatch
+
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """

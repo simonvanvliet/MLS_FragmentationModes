@@ -5,6 +5,10 @@ Created on Tue Oct 21 2019
 
 Last Update Oct 22 2019
 
+Scans model parameters within full 2D parameter space
+Output stored on disk
+Plot with plotScanStates
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
@@ -26,19 +30,27 @@ import itertools
 Define parameters
 ============================================================================"""
 
-numCore = 20 #number of cores to run code on
+numCore = 44 #number of cores to run code on
 
-mainName = 'grpRates_March11'
+#set name of output
+mainName = 'March28'
 
 #setup variables to scan
+
+#set 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
 
-par1 = ['gr_SFis', np.array([0.2, 4, 8])]
-par2 = ['indv_K', np.array([100])] 
-par3 = ['indv_NType', np.array([2])] 
+#set other parameters to scan
+parNames = ['gr_SFis', 'delta_indv', 'alpha_Fis'] #parameter keys
+par0_vec = np.array([0.2, 4, 8]) #parameter values
+par1_vec = np.array([1, 0]) #parameter values
+par2_vec = np.array([1, 10, 20]) #parameter values
 
+#set constant model settings
 K_tot_def = 20000
+K_tot_multiplier = 6 #if SFis=0 increase K_tot by this factor  
+
 
 model_par = {
         #time and run settings
@@ -56,11 +68,11 @@ model_par = {
         "init_groupDens":   50,     # initial total cell number in group
         # settings for individual level dynamics
         # complexity
-        "indv_NType":       2,
+        "indv_NType":       1,
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
         "indv_cost":        0.01,   # cost of cooperation
-        "indv_mutR":        1E-3,   # mutation rate to cheaters
+        "indv_mutR":        0,   # mutation rate to cheaters
         "indv_migrR":       0,      # mutation rate to cheaters
         # group size control
         "indv_K":           100,     # total group size at EQ if f_coop=1
@@ -69,6 +81,7 @@ model_par = {
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          0,
+        'alpha_Fis':        1,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,      # carrying capacity of groups
@@ -83,7 +96,7 @@ model_par = {
         'perimeter_loc':    0
     }
   
-
+#set abbreviated parameter names
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
                 'delta_grp'     : 'dGrp',
@@ -91,6 +104,7 @@ parNameAbbrev = {
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -101,31 +115,34 @@ parNameAbbrev = {
                 'K_tot'         : 'kTot',
                 'run_idx'       : 'indx'}
 
-
-
-
 """============================================================================
 Define functions
 ============================================================================"""
 
-
+#create data name from parameter values
 def create_data_name(mainName, model_par):
+    #set parameters and order to include in file name
     parListName = ['indv_K', 'gr_CFis','K_tot',
                    'indv_NType', 'indv_asymmetry']
-
+    #create name string
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
     dataFileName = mainName + parName 
         
     return dataFileName
 
+#set model parameters for fission mode
 def set_model_par(model_par, settings):
+    #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
+    
+    #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
         
+    #adjust K_tot if needed
     if model_par_local['gr_SFis'] == 0:
-        model_par_local['K_tot']  = K_tot_def * 6
+        model_par_local['K_tot']  = K_tot_def * K_tot_multiplier
     else:
         model_par_local['K_tot'] = K_tot_def
                                
@@ -137,7 +154,8 @@ def create_model_par_list(model_par):
     modelParList = []
     run_idx = -1
     
-    for parValues in itertools.product(*(par1[1], par2[1], par3[1])):
+    # itertools.product creates all possible combination of parameters
+    for parValues in itertools.product(*(par0_vec, par1_vec, par2_vec)):
         run_idx = -1
    
         for offspr_size in offspr_size_Vec:
@@ -147,9 +165,9 @@ def create_model_par_list(model_par):
                 if inBounds:
                     perimeter_loc = offspr_size if offspr_frac>=0.5 else (1 - offspr_size)
                     
-                    settings = {par1[0]        : parValues[0],
-                                par2[0]        : parValues[1],
-                                par3[0]        : parValues[2],
+                    settings = {parNames[0]    : parValues[0],
+                                parNames[1]    : parValues[1],
+                                parNames[2]    : parValues[2],
                                 'offspr_size'  : offspr_size,
                                 'offspr_frac'  : offspr_frac,
                                 'run_idx'      : run_idx,
@@ -160,7 +178,7 @@ def create_model_par_list(model_par):
                     modelParList.append(curPar)
     return modelParList
 
-                        
+# run model code
 def run_model(mainName, model_par, numCore):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
@@ -187,15 +205,15 @@ def run_model(mainName, model_par, numCore):
              results    = results,
              offsprSize = offspr_size_Vec, 
              offsprFrac = offspr_frac_Vec,
-             parNames   = [par1[0],par2[0],par3[0]],
-             par1       = par1[1],
-             par2       = par2[1],
-             par3       = par3[1],
+             parNames   = parNames,
+             par1       = par0_vec,
+             par2       = par1_vec,
+             par3       = par2_vec,
              parList    = modelParList)
 
     return None
 
-#run parscan and make figure
+#run parscan
 if __name__ == "__main__":
     statData = run_model(mainName, model_par, numCore)    
 

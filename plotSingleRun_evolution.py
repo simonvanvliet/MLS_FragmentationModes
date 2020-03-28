@@ -4,6 +4,8 @@ Created on Nov 13 2019
 
 Last Update Nov 13 2019
 
+Creates plot for a single evolution run
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia

@@ -5,6 +5,8 @@ Created on Tue Oct 21 2019
 
 Last Update Oct 22 2019
 
+Runs mutational meltdown scan. 
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
@@ -29,24 +31,33 @@ Define parameters
 override_data = False #set to true to force re-calculation
 numCore = 45 #number of cores to run code on
 
+#set name of data file
 mainName = 'MutationMeltdown_March9'
-numRepeat = 3
 
-#setup variables to scan
-mu_Vec = np.logspace(0,-7,29) #8+7n
+#set how often to repeat each condition (median value is shown in end)
+numRepeat = 3 
 
+#set  mutation rates to try
+mu_Vec = np.logspace(0,-7,29) # 8+7n
+
+#setup 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
+
+#set model mode settings (slope and migration rate)
 mode_set = np.array([[8, 2, 0.1, 0,    0,    0, 0],
                      [0, 0,   0, 0, 1e-2, 1e-1, 1]])
 modeNames = ['gr_SFis', 'indv_migrR']
 mode_vec = np.arange(mode_set.shape[1])
-par0_vec = np.array([0.01])
-par1_vec = np.array([1, 2, 3, 4])
-parNames = ['indv_cost','indv_NType']
+
+#set other parameters to scan
+parNames = ['indv_cost','indv_NType'] #parameter keys
+par0_vec = np.array([0.01]) #parameter values
+par1_vec = np.array([1, 2, 3, 4]) #parameter values
+
+#set constant model settings
 K_tot_def = 30000
-
-
+K_tot_multiplier = 5 #if SFis=0 increase K_tot by this factor  
 
 model_par = {
         #time and run settings
@@ -77,6 +88,7 @@ model_par = {
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          1/50,
+        'alpha_Fis':        1,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,      # carrying capacity of groups
@@ -91,7 +103,7 @@ model_par = {
         'perimeter_loc':    0
     }
   
-
+#set abbreviated parameter names
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
                 'delta_grp'     : 'dGrp',
@@ -99,6 +111,7 @@ parNameAbbrev = {
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -110,30 +123,35 @@ parNameAbbrev = {
                 'run_idx'       : 'indx'}
 
 
-
-
 """============================================================================
 Define functions
 ============================================================================"""
 
-
+#create data name from parameter values
 def create_data_name(mainName, model_par):
+    #set parameters and order to include in file name
     parListName = ['indv_K', 'gr_CFis','K_tot',
                    'indv_asymmetry']
 
+    #create name string
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
     dataFileName = mainName + parName 
         
     return dataFileName
 
+#set model parameter
 def set_model_par(model_par, settings):
+    #copy dictionary (needed, otherwise changed in place)
     model_par_local = model_par.copy()
+    
+    #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
-        
+
+    #adjust K_tot if needed
     if model_par_local['gr_SFis'] == 0:
-        model_par_local['K_tot']  = K_tot_def * 5
+        model_par_local['K_tot']  = K_tot_def * K_tot_multiplier
     else:
         model_par_local['K_tot'] = K_tot_def    
         
@@ -146,6 +164,7 @@ def create_model_par_list(model_par):
     modelParList = []
     run_idx = -1
     
+    #create model parameter list for all valid parameter range
     for mode in mode_vec:            
         for par0 in par0_vec:
             for par1 in par1_vec:                
@@ -168,8 +187,9 @@ def create_model_par_list(model_par):
                             modelParList.append(curPar)
     return modelParList
 
+#run mutational meltdown scan
 def run_meltdown_scan(model_par, numRepeat):
-    
+    #init output
     maxMu = np.full(numRepeat, np.nan)
     maxLoad = np.full(numRepeat, np.nan)
     NTot = np.full(numRepeat, np.nan)
@@ -177,6 +197,7 @@ def run_meltdown_scan(model_par, numRepeat):
     NCoop = np.full(numRepeat, np.nan)
     NGrp = np.full(numRepeat, np.nan)
 
+    #loop repeats
     for rr in range(numRepeat):
         #init state
         idx = 0
@@ -208,6 +229,7 @@ def run_meltdown_scan(model_par, numRepeat):
     
     return (maxMu, maxLoad, NTot, NCoop, NGrp, outputMat)
 
+#run model code
 def run_model(mainName, model_par, numRepeat):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
@@ -252,7 +274,7 @@ def run_model(mainName, model_par, numRepeat):
 
     return None
 
-#run parscan and make figure
+#run parscan 
 if __name__ == "__main__":
     statData = run_model(mainName, model_par, numRepeat)
 

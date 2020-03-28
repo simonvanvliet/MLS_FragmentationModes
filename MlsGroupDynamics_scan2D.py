@@ -5,6 +5,10 @@ Created on Tue Oct 21 2019
 
 Last Update Oct 22 2019
 
+Code runs single 2D parameter space scan. Output stored on disk.
+For multiple scans use MlsGroupDynamics_scanStates.
+Plot with plotParScan
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
@@ -76,6 +80,7 @@ model_par = {
         # fission rate
         'gr_SFis':          0,
         'gr_CFis':          1/100,
+        'alpha_Fis':        1,
         # extinction rate
         'delta_group':      1,      # exponent of denisty dependence on group #
         'K_group':          1000,    # carrying capacity of groups
@@ -88,10 +93,6 @@ model_par = {
     }
 
 
-
-
-
-
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
                 'delta_grp'     : 'dGrp',
@@ -99,6 +100,7 @@ parNameAbbrev = {
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -110,8 +112,6 @@ parNameAbbrev = {
                 'model_mode'    : 'mode',
                 'slope_coef'    : 'sCof',
                 'indv_tau'      : 'tInd'}
-
-
 
 
 """============================================================================

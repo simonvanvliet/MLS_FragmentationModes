@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on March 6 2020
+Last Update March 28 2020
 
-%evolution model, traits encoded at group level
+Implements main MLS model of group dynamics with evolution of group level traits
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -400,6 +401,7 @@ def run_model(model_par):
     # get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / indv_K
+    alpha_Fis  = float(model_par['alpha_Fis'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -458,7 +460,7 @@ def run_model(model_par):
         
         # calc rates of group events
         mls.calc_group_rates(grpRate, grpMat, grSizeVec, NTot, NGroup,
-                            gr_CFis, gr_SFis, K_grp, K_tot,
+                            gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
                             delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
@@ -550,6 +552,7 @@ def single_run_save(model_par, mainName):
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -620,6 +623,7 @@ if __name__ == "__main__":
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          4,
+        'alpha_Fis':        1,
         'indv_tau':         0.1,
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #

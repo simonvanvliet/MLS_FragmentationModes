@@ -5,6 +5,11 @@ Created on Tue Oct 21 2019
 
 Last Update Oct 22 2019
 
+Scans model parameters along transect following outer edge of parameter space
+Starts upper left corner (0), goes to right corner (0.5), ends in lower left corner (1) 
+Output stored on disk
+Plot with plotParScanTransect
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
@@ -30,23 +35,27 @@ Define parameters
 ============================================================================"""
 
 numCore = 45 #number of cores to run code on
-numThread = 1 #number o threads per core
-#where to store output?
+numThread = 1 #number of threads per core
 
+#set location and name of output
 data_folder = Path(".")
 mainName = 'transect_March1'
 
 
 #setup variables to scan
+#set 1D perimeter grid
 perimeter_loc_vec = np.linspace(0,1,51)
-par0_vec = np.array([1e-3, 1e-2, 1e-1])
-par1_vec = np.array([1, 2, 3, 4])
-par2_vec = np.array([1e-3, 1e-2, 1e-1, 1, 10])
-parNames = ['indv_mutR', 'indv_NType', 'indv_migrR']
 
+#set other parameters to scan
+parNames = ['indv_mutR', 'indv_NType', 'indv_migrR'] #parameter keys
+par0_vec = np.array([1e-3, 1e-2, 1e-1]) #parameter values
+par1_vec = np.array([1, 2, 3, 4]) #parameter values
+par2_vec = np.array([1e-3, 1e-2, 1e-1, 1, 10]) #parameter values
+
+#set constant model settings
 K_tot_def = 30000
+K_tot_multiplier = 6 #if SFis=0 increase K_tot by this factor  
 
-#set other parameters
 model_par = {
         #time and run settings
         "maxT":             10000,  # total run time
@@ -76,6 +85,7 @@ model_par = {
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          0,
+        'alpha_Fis':        1,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,    # carrying capacity of groups
@@ -95,7 +105,7 @@ model_par = {
 Define functions
 ============================================================================"""
 
-
+#set abbreviated parameter names
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
                 'delta_grp'     : 'dGrp',
@@ -103,6 +113,7 @@ parNameAbbrev = {
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
+                'alpha_Fis'     : 'fisA',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
@@ -116,18 +127,19 @@ parNameAbbrev = {
                 'perimeter_loc' : 'pLoc',
                 'run_idx'       : 'idxR'}
 
-
+#create data name from parameter values
 def create_data_name(mainName, model_par):
+    #set parameters and order to include in file name
     parListName = ['indv_cost', 'indv_migrR',
                    'indv_K', 'K_grp', 'K_tot',
                    'indv_asymmetry',
                    'delta_indv','delta_grp','delta_tot','delta_size',
                    'gr_CFis']
 
+    #create name string
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)
     dataFileName = mainName + parName 
-        
     
     return dataFileName
 
@@ -137,6 +149,7 @@ def set_fission_mode(perimeter_loc, par0, par1, par2, parNames):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
 
+    #set perimeter location
     if perimeter_loc <= 0.5:
         offspr_size = perimeter_loc
         offspr_frac = 1 - offspr_size
@@ -144,6 +157,7 @@ def set_fission_mode(perimeter_loc, par0, par1, par2, parNames):
         offspr_size = 1 - perimeter_loc
         offspr_frac = offspr_size
         
+    #set model parameters
     model_par_local['perimeter_loc'] = perimeter_loc
     model_par_local['offspr_size'] = offspr_size
     model_par_local['offspr_frac'] = offspr_frac
@@ -151,16 +165,17 @@ def set_fission_mode(perimeter_loc, par0, par1, par2, parNames):
     model_par_local[parNames[1]] = par1
     model_par_local[parNames[2]] = par2
     
+    #adjust K_tot if needed
     if model_par_local['gr_SFis'] == 0:
-       model_par_local['K_tot']  = K_tot_def * 6
+       model_par_local['K_tot']  = K_tot_def * K_tot_multiplier
     else:
         model_par_local['K_tot'] = K_tot_def
         
     return model_par_local
 
-# run model
+# run model code
 def run_model():
-    #create model paremeter list for all valid parameter range
+    #create model parameter list for all valid parameter range
     # *x unpacks variables stored in tuple x e.g. if x = (a1,a2,a3) than f(*x) = f(a1,a2,a3)
     # itertools.product creates all possible combination of parameters
     modelParList = [set_fission_mode(*x, parNames)
@@ -174,7 +189,7 @@ def run_model():
         results = Parallel(n_jobs=nJobs, verbose=10, timeout=1.E8)(
             delayed(mls.single_run_finalstate)(par) for par in modelParList)
         
-        
+    #save data    
     dataFileName = create_data_name(mainName, model_par)
     dataFilePath = data_folder / (dataFileName + '.npz')    
     
@@ -189,7 +204,7 @@ def run_model():
     
     return None
 
-#run parscan and make figure
+#run parscan 
 if __name__ == "__main__":
     run_model()
 

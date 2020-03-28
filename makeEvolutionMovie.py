@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created in March 2020
+Code makes movie of evolution runs.
+
+@author: simonvanvliet
+vanvliet@zoology.ubc.ca
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -16,16 +26,6 @@ binCenterOffsprSize = (binsOffsprSize[1::]+binsOffsprSize[0:-1])/2
 binCenterOffsprFrac = (binsOffsprFrac[1::]+binsOffsprFrac[0:-1])/2
 
 alphaTop = 0.7
-
-#cmapbg = matplotlib.cm.get_cmap(name='gist_gray')
-#cmapbg.set_bad(color='black')
-#
-#cmapfr = matplotlib.cm.get_cmap(name='hot')
-#cmapfr.set_bad(color='black')
-#    
-#cmapFR = matplotlib.cm.ScalarMappable(cmap=cmapfr)
-#cmapBG = matplotlib.cm.ScalarMappable(cmap=cmapbg)
-
 
 def process_frame(data):
     processedData = np.copy(data)

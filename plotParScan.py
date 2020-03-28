@@ -3,6 +3,9 @@
 """
 Created on Tue Oct 23 2019
 
+Plots output of MlsGroupDynamics_scan2D
+
+
 Last Update Oct 23 2019
 
 @author: Simon van Vliet & Gil Henriques

@@ -3,6 +3,9 @@
 """
 Created on Thu Jan 23 10:54:31 2020
 
+Creates a batch of evolution movies created with MlsEvoBatch
+
+
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """

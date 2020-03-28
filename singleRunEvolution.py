@@ -5,6 +5,9 @@ Created on Tue Oct 18 2019
 
 Last Update Oct 22 2019
 
+Run single evolution model and plot result
+
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
@@ -55,6 +58,7 @@ model_par = {
     # fission rate
     'gr_Cfission':      1/100,
     'gr_Sfission':      2,
+    'alpha_Fis':        1,
     # extinction rate
     'delta_grp':        0,      # exponent of denisty dependence on group #
     'K_grp':            0,    # carrying capacity of groups

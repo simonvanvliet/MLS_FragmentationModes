@@ -4,13 +4,15 @@ Created on Nov 13 2019
 
 Last Update Nov 13 2019
 
+Create plots of single model run
+
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
 University of Britisch Columbia
 vanvliet@zoology.ubc.ca
 henriques@zoology.ubc.ca
 
-Plots resukt of single run
+Plots result of single run
 
 """
 
