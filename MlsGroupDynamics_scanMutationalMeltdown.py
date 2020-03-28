@@ -29,10 +29,10 @@ Define parameters
 ============================================================================"""
 
 override_data = False #set to true to force re-calculation
-numCore = 45 #number of cores to run code on
+numCore = 40 #number of cores to run code on
 
 #set name of data file
-mainName = 'MutationMeltdown_March9'
+mainName = 'MutationMeltdown_March28'
 
 #set how often to repeat each condition (median value is shown in end)
 numRepeat = 3 
@@ -45,7 +45,7 @@ offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
 
 #set model mode settings (slope and migration rate)
-mode_set = np.array([[8, 2, 0.1, 0,    0,    0, 0],
+mode_set = np.array([[8, 4, 0.2, 0,    0,    0, 0],
                      [0, 0,   0, 0, 1e-2, 1e-1, 1]])
 modeNames = ['gr_SFis', 'indv_migrR']
 mode_vec = np.arange(mode_set.shape[1])
@@ -162,7 +162,6 @@ def set_model_par(model_par, settings):
 def create_model_par_list(model_par):
    #create model paremeter list for all valid parameter range
     modelParList = []
-    run_idx = -1
     
     #create model parameter list for all valid parameter range
     for mode in mode_vec:            
