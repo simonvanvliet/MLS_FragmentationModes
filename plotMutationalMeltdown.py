@@ -23,7 +23,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'MutationMeltdown_Feb18_kInd1e+02_fisC0.01_kTot3e+04_nTyp2_asym1.npz'
+fileName = 'MutationMeltdown_March9_kInd1e+02_fisC0.01_kTot3e+04_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 data_folder = Path(".")

@@ -3,130 +3,102 @@
 """
 Created on Tue Jan 21 16:58:05 2020
 
+Code runs multiple 2D parameter space scans, each run is stored on disk independently
+Results can be plotted using plotParScan
+
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
-
-import MlsGroupDynamics_scanParSpace as mls
+import MlsGroupDynamics_scan2D as mls
 import numpy as np
+import MlsGroupDynamics_utilities as util
 
-mainName = 'scan2D_Jan27'
+""" 
+SET SETTINGS
+"""
+#SET mainName is appended to file name
+mainName = 'evol2D_March6'
+#SET number of cores to use
+numCore = 10;
+#SET group fission rates to scan
+gr_Sfission_Vec = np.array([4])
+#SET parName and par0Vec to scan over any parameter of choice
+par0Name = 'indv_tau'
+par0Vec = np.array([1, 0.1, 0.01])
+#SET parameter space to scan
+offspr_sizeVec = np.arange(0.01, 0.5, 0.017)
+offspr_fracVec = np.arange(0.01, 1, 0.035) 
 
-model_mode_Vec = np.arange(4)
-cost_Vec = np.array([0.01])
-Kindv_Vec = np.array([50, 200])
-mu_Vec = np.array([1E-3])
-slope_coef_Vec = np.array([0, 0.1, 2, 8])
+#SET Population size
+K_tot_def = 20000
 
-
-
-
-K_group_def = 1500
-K_tot_def = 90000
-
+#SET Model default settings
 model_par = {
-        #time and run settings
-        "maxT":             10000,  # total run time
-        "maxPopSize":       30000,  #stop simulation if population exceeds this number
-        "minT":             250,    # min run time
-        "sampleInt":        1,      # sampling interval
-        "mav_window":       400,    # average over this time window
-        "rms_window":       400,    # calc rms change over this time window
-        "rms_err_trNCoop":  1E-1,   # when to stop calculations
-        "rms_err_trNGr":    5E-1,   # when to stop calculations
-        # settings for initial condition
-        "init_groupNum":    50,     # initial # groups
-        "init_fCoop":       1,
-        "init_groupDens":   20,     # initial total cell number in group
-        # settings for individual level dynamics
-        # complexity
-        "indv_NType":       2,
-        "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
-        # mutation load
-        "indv_cost":        0.1,  # cost of cooperation
-        "indv_mutationR":   1E-3,   # mutation rate to cheaters
-        # group size control
-        "indv_K":           0,     # total group size at EQ if f_coop=1
-        "delta_indv":       0,      # zero if death rate is simply 1/k, one if death rate decreases with group size
-        # setting for group rates
-        'model_mode':       0,
-        # fission rate
-        'slope_coef':       1,
-        'gr_Sfission':      0,
-        'gr_Cfission':      1/100,
-        # extinction rate
-        'delta_group':      0,      # exponent of denisty dependence on group #
-        'K_group':          K_group_def,    # carrying capacity of groups
-        'delta_tot':        0,      # exponent of denisty dependence on total #indvidual
-        'K_tot':            K_tot_def,   # carrying capacity of total individuals
-        'delta_size':       0,      # exponent of size dependence
-        # settings for fissioning
-        'offspr_size':      0.125,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.5    # offspr_size < offspr_frac < 1-offspr_size'
+    #time and run settings
+    "maxT":             10000,  # total run time
+    "maxPopSize":       100000,  #stop simulation if population exceeds this number
+    "minT":             200,    # min run time
+    "sampleInt":        1,      # sampling interval
+    "mav_window":       400,    # average over this time window
+    "rms_window":       400,    # calc rms change over this time window
+    "rms_err_trNCoop":  1E-1,   # when to stop calculations
+    "rms_err_trNGr":    5E-1,   # when to stop calculations
+    # settings for initial condition
+    "init_groupNum":    10,     # initial # groups
+    "init_fCoop":       1,
+    "init_groupDens":   50,     # initial total cell number in group
+    # settings for individual level dynamics
+    # complexity
+    "indv_NType":       2,
+    "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
+    # mutation load
+    "indv_cost":        0.01,  # cost of cooperation
+    "indv_migrR":       0,   # mutation rate to cheaters
+    # set mutation rates
+    'indv_mutR':        1E-3,
+    'indv_tau':         0.1,
+    # group size control
+    "indv_K":           100,     # total group size at EQ if f_coop=1
+    "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
+    # setting for group rates
+    # fission rate
+    'gr_CFis':          1/100,
+    'gr_SFis':          0,
+    # extinction rate
+    'delta_grp':        0,      # exponent of denisty dependence on group #
+    'K_grp':            0,    # carrying capacity of groups
+    'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
+    'K_tot':            5000,   # carrying capacity of total individuals
+    'delta_size':       0,      # exponent of size dependence
+    # initial settings for fissioning
+    'offspr_size':      0.25,  # offspr_size <= 0.5 and
+    'offspr_frac':      0.5,  # offspr_size < offspr_frac < 1-offspr_size'
+    # extra settings
+    'run_idx':          1,
+    'perimeter_loc':    0
     }
-
-
-def set_model_mode(model_par, mode, K_indv, slope_coef):
-    model_par['delta_size'] = 0
-    model_par['model_mode'] = mode
-    
-    if mode == 0:
-        model_par['delta_group'] = 1
-        model_par['delta_tot'] = 0
-        model_par['delta_indv'] = 1
-        model_par['gr_Sfission'] = 0
-        model_par['K_group'] = K_group_def       
-        model_par['K_tot'] = 0
-    elif mode == 1:
-        model_par['delta_group'] = 1
-        model_par['delta_tot'] = 0     
-        model_par['delta_indv'] = 0
-        model_par['gr_Sfission'] = slope_coef / K_indv
-        model_par['K_group'] = K_group_def / 12        
-        model_par['K_tot'] = 0
-    elif mode == 2:
-        model_par['delta_group'] = 0
-        model_par['delta_tot'] = 1
-        model_par['delta_indv'] = 1
-        model_par['gr_Sfission'] = 0
-        model_par['K_tot'] = K_tot_def       
-        model_par['K_group'] = 0
-    elif mode == 3:
-        model_par['delta_group'] = 0
-        model_par['delta_tot'] = 1     
-        model_par['delta_indv'] = 0
-        model_par['gr_Sfission'] = slope_coef / K_indv
-        model_par['K_tot'] = K_tot_def / 12        
-        model_par['K_group'] = 0       
-    else:
-        print('unkown model_mode, choose from [0:3]')
-        raise ValueError
-   
-    return None
-        
-    
-def set_model_par(settings):
-    model_par_local = model_par.copy()
-    set_model_mode(model_par_local, settings['model_mode'], settings['indv_K'], settings['slope_coef'])
-    for key, val in settings.items():
-        model_par_local[key] = val
-    return model_par_local
-
+  
+          
 def run_batch():
-    for model_mode in model_mode_Vec:
-        for cost in cost_Vec:
-            for Kindv in Kindv_Vec:
-                for mu in mu_Vec:
-                    for slope_coef in slope_coef_Vec:
-                    
-                        settings = {'model_mode': model_mode, 
-                                    'indv_cost' : cost, 
-                                    'indv_mutationR' : mu,
-                                    'indv_K' : Kindv,
-                                    'slope_coef' : slope_coef}
+    """[Runs batch of 2D parameter scans]
+    
+    Returns:
+        None
+    """
+    for gr_Sfission in gr_Sfission_Vec:
+        for par0 in par0Vec:
+            if gr_Sfission == 0:
+                K_tot = K_tot_def * 6
+            else:
+                K_tot = K_tot_def
+                
+            settings = {'gr_SFis' : gr_Sfission,
+                        par0Name  : par0,
+                        'K_tot'   : K_tot}
                         
-                        modelParCur = set_model_par(settings)
-                        _ = mls.load_or_run_model(mainName, modelParCur)
+            modelParCur = util.set_model_par(model_par, settings)
+            _ = mls.run_model(mainName, modelParCur, numCore, 
+                                      offspr_sizeVec, offspr_fracVec)
             
     return None
 

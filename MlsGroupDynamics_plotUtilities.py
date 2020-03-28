@@ -63,8 +63,10 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
     
     #find max value 
     if 'roundTo' in settings:
-        maxData = math.ceil(np.nanmax(dataMatrix) / settings['roundTo']) * settings['roundTo']
-        minData = math.floor(np.nanmin(dataMatrix) / settings['roundTo']) * settings['roundTo']
+        nanMax = max(0, np.nanmax(dataMatrix))
+        nanMin = min(0, np.nanmin(dataMatrix))
+        maxData = math.ceil(nanMax / settings['roundTo']) * settings['roundTo']
+        minData = math.floor(nanMin / settings['roundTo']) * settings['roundTo']
     else:
         maxData = np.nanmax(dataMatrix)
         minData = np.nanmin(dataMatrix)
@@ -80,7 +82,7 @@ def plot_heatmap_sub(fig, ax, xAxis, yAxis, dataMatrix, settings):
                        cmap=current_cmap, vmin=vmin, vmax=vmax)
     
     #add colorbar
-    fig.colorbar(im, ax=ax, orientation='horizontal',
+    fig.colorbar(im, ax=ax, orientation='vertical',
                  label=dataName,
                  ticks=np.linspace(vmin, vmax, cstep), 
                  fraction=0.5, pad=0.1)
@@ -168,6 +170,35 @@ def plot_transect(fig, ax, statData, xName, yName, keyDict, dataName):
 
     return None
 
+#plots transect
+def plot_transect_relative(fig, ax, statData, xName, yName, keyDict, keyDictBaseline, dataName):
+    #convert 1D list to 2D matrix
+    
+    _, yDataBaseline = create_transect(statData, xName, yName, keyDictBaseline)
+    nonZero = yDataBaseline != 0
+    
+    xData, yData = create_transect(statData, xName, yName, keyDict)
+    
+    yData_rel = yData[nonZero] / yDataBaseline[nonZero]
+
+    #plot heatmap
+    ax.plot(xData[nonZero], yData_rel, label=dataName)
+
+    #make axis nice
+    if xData.size > 0:
+        xRange = (xData.min(), xData.max())
+        yRange = (yData.min(), yData.max())
+        steps = (3, 3)
+        ax.set_xlim(xRange)
+        #ax.set_ylim(yRange)
+        ax.set_xticks(np.linspace(*xRange, steps[0]))
+        #ax.set_yticks(np.linspace(*yRange, steps[1]))
+
+    # set labels
+    ax.set_xlabel(xName)
+    ax.set_ylabel(yName)
+
+    return None
 
 def plot_mutational_meltdown(fig, ax, offSizeVec, offsFracVec, statData, plotData, keyDict, plotSettings):
     #get size of matrix

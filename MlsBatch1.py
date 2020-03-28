@@ -3,28 +3,40 @@
 """
 Created on Tue Jan 21 16:58:05 2020
 
+Code runs multiple 2D parameter space scans, each run is stored on disk independently
+Results can be plotted using plotParScan
+
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
-
 import MlsGroupDynamics_scan2D as mls
 import numpy as np
+import MlsGroupDynamics_utilities as util
 
-mainName = 'evol2D_Feb28'
+""" 
+SET SETTINGS
+"""
+#SET mainName is appended to file name
+mainName = 'group_evolution2D_March6'
+#SET number of cores to use
 numCore = 18;
-
-
-gr_Sfission_Vec = np.array([0, 0.1, 2, 8])
-indv_KVec = np.array([50, 200])
-K_tot_def = 30000
-
+#SET group fission rates to scan
+gr_Sfission_Vec = np.array([0.2,4,8])
+#SET parName and par0Vec to scan over any parameter of choice
+par0Name = 'indv_tau'
+par0Vec = np.array([1])
+#SET parameter space to scan
 offspr_sizeVec = np.arange(0.01, 0.5, 0.017)
 offspr_fracVec = np.arange(0.01, 1, 0.035) 
 
+#SET Population size
+K_tot_def = 20000
+
+#SET Model default settings
 model_par = {
     #time and run settings
     "maxT":             10000,  # total run time
-    "maxPopSize":       30000,  #stop simulation if population exceeds this number
+    "maxPopSize":       100000,  #stop simulation if population exceeds this number
     "minT":             200,    # min run time
     "sampleInt":        1,      # sampling interval
     "mav_window":       400,    # average over this time window
@@ -44,6 +56,7 @@ model_par = {
     "indv_migrR":       0,   # mutation rate to cheaters
     # set mutation rates
     'indv_mutR':        1E-3,
+    'indv_tau':         0.1,
     # group size control
     "indv_K":           100,     # total group size at EQ if f_coop=1
     "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
@@ -65,28 +78,25 @@ model_par = {
     'perimeter_loc':    0
     }
   
-        
-    
-def set_model_par(settings):
-    model_par_local = model_par.copy()
-    for key, val in settings.items():
-        model_par_local[key] = val
-    return model_par_local
-
+          
 def run_batch():
-
+    """[Runs batch of 2D parameter scans]
+    
+    Returns:
+        None
+    """
     for gr_Sfission in gr_Sfission_Vec:
-        for indv_K in indv_KVec:
+        for par0 in par0Vec:
             if gr_Sfission == 0:
                 K_tot = K_tot_def * 6
             else:
                 K_tot = K_tot_def
                 
             settings = {'gr_SFis' : gr_Sfission,
-                        'indv_K' : indv_K,
-                        'K_tot'  : K_tot}
+                        par0Name  : par0,
+                        'K_tot'   : K_tot}
                         
-            modelParCur = set_model_par(settings)
+            modelParCur = util.set_model_par(model_par, settings)
             _ = mls.run_model(mainName, modelParCur, numCore, 
                                       offspr_sizeVec, offspr_fracVec)
             

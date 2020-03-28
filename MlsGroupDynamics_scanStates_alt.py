@@ -17,7 +17,7 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
-import MlsGroupDynamics_main as mls
+import MlsGroupDynamics_main_alt as mls
 from joblib import Parallel, delayed
 import numpy as np
 import itertools
@@ -26,16 +26,16 @@ import itertools
 Define parameters
 ============================================================================"""
 
-numCore = 20 #number of cores to run code on
+numCore = 22 #number of cores to run code on
 
-mainName = 'grpRates_March11'
+mainName = 'K_SFis_indep'
 
 #setup variables to scan
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
 
-par1 = ['gr_SFis', np.array([0.2, 4, 8])]
-par2 = ['indv_K', np.array([100])] 
+par1 = ['gr_SFis', np.array([0, 0.2, 4, 8])/100]
+par2 = ['indv_K', np.array([50, 100, 200, 400])] 
 par3 = ['indv_NType', np.array([2])] 
 
 K_tot_def = 20000

@@ -467,7 +467,7 @@ def distribute_offspring(offspr_size, offspr_frac, NCellPar):
     
     return (destinationIdx, nOffspring)
 
-@jit(Tuple((f8[::1],f8[:, ::1],i8))(f8[::1], f8, f8), nopython=True)
+@jit(Tuple((f8[::1],f8[:, ::1]))(f8[::1], f8, f8), nopython=True)
 def fission_group(parentGroup, offspr_size, offspr_frac): 
     #get group properties
     NCellPar = int(parentGroup.sum())
@@ -501,10 +501,10 @@ def fission_group(parentGroup, offspr_size, offspr_frac):
         parrentNew = parentGroup
         offspring = np.zeros((0, 0)) 
         
-    return (parrentNew, offspring, nOffspring)
+    return (parrentNew, offspring)
 
 # process individual level events
-@jit(Tuple((f8[:, ::1], i8, i8, i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
+@jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
 def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp, NDGrp):
     # get number of groups
     NGrp = groupMat.shape[1]
@@ -524,7 +524,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
 
         #perform fission process
         if offspr_size > 0:
-            parrentNew, offspring, nOffspring = fission_group(parentGroup, offspr_size, offspr_frac)
+            parrentNew, offspring = fission_group(parentGroup, offspr_size, offspr_frac)
 
             # only add daughter if not empty
             if offspring.size > 0:                
@@ -535,6 +535,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
                     NDGrp += 1
                 # add new daughter group
                 groupMat = np.column_stack((groupMat, offspring))
+                NBGrp += offspring.shape[1]
     
             
             NGrp = groupMat.shape[1]
@@ -544,7 +545,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
         groupMat, NGrp = remove_group(groupMat, eventGroup)
         NDGrp += 1
 
-    return (groupMat, NGrp, nOffspring)
+    return (groupMat, NGrp)
 
 
 # create helper vectors for dot products
@@ -632,7 +633,7 @@ def run_model(model_par):
         
     #get group fission rates
     gr_CFis    = float(model_par['gr_CFis'])
-    gr_SFis    = float(model_par['gr_SFis']) / indv_K
+    gr_SFis    = float(model_par['gr_SFis'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -737,11 +738,9 @@ def run_model(model_par):
                 groupsHaveChanged = True
         else:
             # group level event - select and process group level event
-            groupMat, NGrp, nOffspring = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
+            groupMat, NGrp = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
                                                  offspr_size, offspr_frac, NBGrp, NDGrp)
             groupsHaveChanged = True
-            NBGrp += nOffspring
-
 
         if groupsHaveChanged:
             if NGrp == 0:  # if all groups have died, end simulation

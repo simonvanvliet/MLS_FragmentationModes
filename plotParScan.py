@@ -23,7 +23,7 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-#set name of file to load (no extension)
+#SET name of file to load 
 fileName = 'scan2D_Jan20_NSpecies2_Assym1_cost0.01_mu0.01_tau100_indvK5e+01_grK1e+02_sFis1_sExt0_Nmin0_offset1_deltaind1_deltagr0.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")

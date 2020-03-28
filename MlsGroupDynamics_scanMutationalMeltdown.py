@@ -29,8 +29,8 @@ Define parameters
 override_data = False #set to true to force re-calculation
 numCore = 45 #number of cores to run code on
 
-mainName = 'MutationMeltdown_March1'
-numRepeat = 5
+mainName = 'MutationMeltdown_March9'
+numRepeat = 3
 
 #setup variables to scan
 mu_Vec = np.logspace(0,-7,29) #8+7n
@@ -41,7 +41,7 @@ mode_set = np.array([[8, 2, 0.1, 0,    0,    0, 0],
                      [0, 0,   0, 0, 1e-2, 1e-1, 1]])
 modeNames = ['gr_SFis', 'indv_migrR']
 mode_vec = np.arange(mode_set.shape[1])
-par0_vec = np.array([0.01, 0.1])
+par0_vec = np.array([0.01])
 par1_vec = np.array([1, 2, 3, 4])
 parNames = ['indv_cost','indv_NType']
 K_tot_def = 30000
@@ -211,7 +211,7 @@ def run_meltdown_scan(model_par, numRepeat):
 def run_model(mainName, model_par, numRepeat):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-    
+    modelParList = modelParList[:2]
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
@@ -220,17 +220,23 @@ def run_model(mainName, model_par, numRepeat):
 
     # process and store output
     maxMu, maxLoad, NTot, NCoop, NGrp, output = zip(*results)
+    statData   = np.vstack(output) 
+    maxMu      = np.vstack(maxMu)
+    maxLoad    = np.vstack(maxLoad)
+    NTot       = np.vstack(NTot)
+    NCoop      = np.vstack(NCoop)
+    NGrp       = np.vstack(NGrp)
 
     #store output to disk 
     dataFileName = create_data_name(mainName, model_par)
     dataFilePath = dataFileName + '.npz'
     np.savez(dataFilePath, 
-             statData   = np.vstack(output), 
-             maxMu      = np.vstack(maxMu), 
-             maxLoad    = np.vstack(maxLoad),
-             NTot       = np.vstack(NTot),
-             NCoop      = np.vstack(NCoop),
-             NGrp       = np.vstack(NGrp),
+             statData    = statData,
+             maxMu       = maxMu,
+             maxLoad     = maxLoad,
+             NTot        = NTot,
+             NCoop       = NCoop,
+             NGrp        = NGrp,
              numRepeat  = numRepeat,
              offsprSize = offspr_size_Vec, 
              offsprFrac = offspr_frac_Vec,
@@ -241,7 +247,8 @@ def run_model(mainName, model_par, numRepeat):
              mode_set   = mode_set,
              modeNames  = modeNames,
              parNames   = parNames,
-             parList    = modelParList)
+             parList    = modelParList
+             )
 
     return None
 

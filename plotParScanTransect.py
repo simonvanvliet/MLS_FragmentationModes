@@ -24,12 +24,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load
-fileName = 'transect_Feb28_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
+fileName = 'transect_March1_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
 
+#set relative (rel) or absolute (abs)
+plotStyle = 'rel' 
 #set Folder
 data_folder = Path(".")
 fig_Folder = Path(
     "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Transect")
+
+fileNameMod = '_' + plotStyle
 
 """============================================================================
 Set figure options 
@@ -161,6 +165,12 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
                     parNames[1], par1_vec[rr], 
                     parNames[2], par2_vec[cc])
             
+                keyDictBaseLine = {
+                        parNames[0]: par0_vec[0],
+                        parNames[1]: par1_vec[rr],
+                        parNames[2]: par2_vec[cc]
+                    }
+                        
                 for mm in range(par0_vec.size):
                     #plot all different values of mu in same subplot
                     #set parameters for current curve to extract
@@ -171,8 +181,13 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
                     }
                     dataName = '%s=%.0g' % (parNames[0], par0_vec[mm])
                     #plot data
-                    pltutl.plot_transect(
-                        fig, ax1, statData, 'perimeter_loc', curPar, keyDict, dataName)
+                    if plotStyle == 'abs':
+                        pltutl.plot_transect(
+                            fig, ax1, statData, 'perimeter_loc', curPar, keyDict, dataName)
+                    elif plotStyle == 'rel':
+                        pltutl.plot_transect_relative(
+                            fig, ax1, statData, 'perimeter_loc', curPar, keyDict, keyDictBaseLine, dataName)    
+                        #ax1.set_ylim(0, 1)
                     ax1.set_title(titleName)
                     ax1.legend()
 
@@ -180,7 +195,7 @@ def make_fig(fileName, pathSave=fig_Folder, pathLoad=data_folder):
         plt.tight_layout() 
         
         #save figure
-        figureName = pathSave / (fileName + '_' + curPar + '.pdf')
+        figureName = pathSave / (fileName + '_' + curPar + fileNameMod + '.pdf')
         fig.savefig(figureName,
                     format="pdf", transparent=True)
     return None

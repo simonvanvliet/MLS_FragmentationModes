@@ -124,8 +124,9 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
 
     # plot rms error
     plt.subplot(nR, nC, 6)
-    plot_data(output, "groupSizeMed")
-    plot_data(output, "groupSizeMed_mav")
+    plot_data(output, "GrpBirths")
+    plot_data(output, "GrpDeaths")
+    plot_data(output, "GrpNetProd")
     plt.legend()
     plt.ylabel("median group size")
     

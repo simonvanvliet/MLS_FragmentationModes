@@ -7,62 +7,39 @@ Created on Thu Feb 27 11:15:00 2020
 vanvliet@zoology.ubc.ca
 """
 
-import plotEvolutionMovie as evomo
-import MlsGroupDynamics_plotUtilities as pltutl
-from pathlib import Path
-import glob
+
 import numpy as np
+from numba.types import Tuple, UniTuple
+from numba import jit, f8, i8
 
-# set file and folder names
-fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Evolution"
-fig_FolderPath = Path(fig_Folder)
-baseName2D = 'evol2D_Feb26'
-baseNameEv = 'evolution_Feb26'
+mutR_frac =0.01
+mutR_size =0.01
+fracIdx = 0.5
+sizeIdx = 0.25
+nBinOffsprSize = 100
+nBinOffsprFrac = 100
 
-# set variables to scan
-gr_SFis_vec = np.array([1])
-indv_K_vec = np.array([100])
+rand = np.random.random(2)
 
-# set search for name
-for gr_SFis in gr_SFis_vec:
-    for indv_K in indv_K_vec:
-        searchName2D = baseName2D + '*kInd%.0g*fisS%.0g*.npz' % (indv_K, gr_SFis) 
-        searchNameEv = baseNameEv + '*fisS%.0g*kInd%.0g*.npz' % (gr_SFis, indv_K)
 
-        # find 2D scans
-        files2D = glob.glob(searchName2D)
-        filesEv = glob.glob(searchNameEv)
+@jit(UniTuple(i8, 2)(f8, f8, i8, i8, f8[:, ::1]), nopython=True)
+def mutate_group(mutR_frac, mutR_size, fracIdx, sizeIdx, rand):
+    #check for mutation in offspring size
+    if rand[0].item() < mutR_size / 2:  # offspring size mutates to lower value
+        offsprSizeIdx = max(0, sizeIdx - 1)
+    elif rand[0].item() < mutR_size:  # offspring size mutates to lower value
+        offsprSizeIdx = min(nBinOffsprSize - 1, sizeIdx + 1)
+    else:
+        offsprSizeIdx = sizeIdx
 
-        if len(files2D) == 1 and len(filesEv) > 0:
+    #check for mutation in offspring fraction
+    if rand[1].item() < mutR_frac / 2:  # offspring size mutates to lower value
+        offsprFracIdx = max(0, fracIdx - 1)
+    elif rand[1].item() < mutR_frac:  # offspring size mutates to lower value
+        offsprFracIdx = min(nBinOffsprFrac - 1, fracIdx + 1)
+    else:
+        offsprFracIdx = fracIdx
 
-            fileName2D = files2D[0]
-            figureName = fileName2D[:-4] + '.pdf'
-            figureDir = fig_FolderPath / figureName
-
-            # Load 2D scan data
-            data_file = np.load(fileName2D, allow_pickle=True)
-            statData = data_file['statData']
-            offsprFrac = data_file['offspr_sizeVec']
-            offsprSize = data_file['offspr_fracVec']
-            data_file.close()
-            
-            
-            offsprFrac = np.sort(np.unique(statData['offspr_frac']))
-            offsprSize = np.sort(np.unique(statData['offspr_size']))
-            
-            data2D = pltutl.create_2d_matrix(
-                offsprSize, offsprFrac, statData, 'NTot_mav')
-        
-            
-            # plot evolution trajectories
-            for fileNameEv in filesEv:
-                # Load evolution data
-                data_file = np.load(fileNameEv, allow_pickle=True)
-                traitDistr = data_file['traitDistr']
-                data_file.close()
-                
-                figureName = fileNameEv[:-4] + '.mp4'
-                movieDir = fig_FolderPath / figureName
-            
-                evomo.create_movie(traitDistr[0::10, :, :], movieDir, 
-                                   data_bg=data2D, fps=25, size=800)
+    #make sure we stay inside allowed trait space
+    
+    return (offsprFracIdx, offsprSizeIdx)

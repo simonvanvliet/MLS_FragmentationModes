@@ -8,7 +8,7 @@ vanvliet@zoology.ubc.ca
 """
 
 import numpy as np
-import plotEvolutionMovie as evomo
+import makeEvolutionMovie as evomo
 import MlsGroupDynamics_plotUtilities as pltutl
 from pathlib import Path
 import glob

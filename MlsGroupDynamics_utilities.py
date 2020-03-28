@@ -16,17 +16,29 @@ import math
 import numpy as np
 from numba import jit, f8, i8
 from numba.types import UniTuple
-from numba.extending import get_cython_function_address
-import ctypes
 
-# create numba compatible inverse normal cdf function
-addr = get_cython_function_address("scipy.special.cython_special", "ndtri")
-functype = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)
-ndtri_fn = functype(addr)
 
 """
  General functions
 """
+
+def set_model_par(model_par, settings):
+    """[Sets model parameters based on settings dictionary]
+    
+    Arguments:
+        model_par {[dictionary]} -- Dictionary with base parameters to modify
+        
+        settings {[dictionary]} -- [keys are names of model parameters, values are parameter values]
+    
+    Returns:
+        [dictionary] -- [modified parameter dictionary]
+    """
+    model_par_local = model_par.copy()
+    for key, val in settings.items():
+        model_par_local[key] = val
+    return model_par_local
+
+
 @jit(UniTuple(i8,2)(i8, UniTuple(i8,2)), nopython=True)
 def flat_to_2d_index(flatIndex, shape):
     """

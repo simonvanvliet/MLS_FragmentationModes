@@ -17,14 +17,18 @@ from matplotlib import cm
 import glob
 
 # set file and folder names
-fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Evolution"
+fig_Folder = "/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/GroupEvolution"
 fig_FolderPath = Path(fig_Folder)
-baseName2D = 'evol2D_Feb28'
-baseNameEv = 'evolution_March2'
-saveNameMod = 'SlowInd'
+baseName2D = 'group_evolution2D_March6'
+baseNameEv = 'group_evolution_March6'
+saveNameMod = ''
 
 # set variables to scan
-gr_SFis_vec = np.array([0, 0.1, 2, 8])
+gr_SFis_vec = np.array([0.2,4,8])
+par0Name = 'indv_tau'
+par0NameAbrv = 'tInd'
+par0Vec = np.array([1])
+
 indv_K_vec = np.array([50, 200])
 
 
@@ -115,14 +119,18 @@ def plot_evo_heatmap(ax, traitDistr):
 
 # set search for name
 for gr_SFis in gr_SFis_vec:
-    for indv_K in indv_K_vec:
-        searchName2D = baseName2D + '*kInd%.0g*fisS%.0g.npz' % (indv_K, gr_SFis) 
-        searchNameEv = baseNameEv + '*fisS%.0g_*kInd%.0g*.npz' % (gr_SFis, indv_K)
-
-        # find 2D scans
-        files2D = glob.glob(searchName2D)
-        filesEv = glob.glob(searchNameEv)
-
+    searchName2D = baseName2D + '*fisS%.0g_*' % (gr_SFis) 
+    searchNameEv = baseNameEv + '*fisS%.0g_*' % (gr_SFis)
+    
+    # find 2D scans
+    files2DAll = glob.glob(searchName2D)
+    filesEvAll = glob.glob(searchNameEv)
+        
+    for par0 in par0Vec:
+        subs = par0NameAbrv + '%.0g' % par0
+        files2D = [i for i in files2DAll if subs in i] 
+        filesEv = [i for i in filesEvAll if subs in i] 
+        
         if len(files2D) == 1 and len(filesEv) > 0:
 
             fileName2D = files2D[0]
@@ -162,8 +170,8 @@ for gr_SFis in gr_SFis_vec:
                 traitDistr = data_file['traitDistr']
                 data_file.close()
                 
-                traitDistr = traitDistr[::20,:,:]
-                outputEvo = outputEvo[::20]
+#                traitDistr = traitDistr[::20,:,:]
+#                outputEvo = outputEvo[::20]
 
                 pltutl.plot_time_data(axs[0,0], outputEvo, "NGroup_mav")
                 axs[0,0].set_ylabel("# group")

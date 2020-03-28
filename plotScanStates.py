@@ -23,7 +23,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'ScanParSpace_Feb25_kInd1e+02_fisC0.01_kTot2e+04_nTyp2_asym1.npz'
+fileName = 'grpRates_March11_kInd1e+02_fisC0.01_kTot2e+04_nTyp2_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 pathLoad = Path(".")
@@ -82,8 +82,8 @@ def make_fig(fileName, pathSave=pathSave, pathLoad=pathLoad):
             
     #load data
     loadName   = pathLoad / (fileName + '.npz')
-    data_file   = np.load(loadName, allow_pickle=True)
-    statData   = data_file['statData']
+    data_file  = np.load(loadName, allow_pickle=True)
+    results    = data_file['results']
     offsprSize = data_file['offsprSize'] 
     offsprFrac = data_file['offsprFrac']
     par1       = data_file['par1']
@@ -92,14 +92,20 @@ def make_fig(fileName, pathSave=pathSave, pathLoad=pathLoad):
     parNames   = data_file['parNames']
     data_file.close()
     
+    
+    # process output
+    statData, _, _ = zip(*results)
+    statData = np.vstack(statData)
+    
+    
     """============================================================================
     Make plot
     ============================================================================"""
     
     
     
-    parToPlot = ['NTot_mav', 'fCoop_mav', 'NGrp_mav']
-    roundTo = np.array([1000,1,100])
+    parToPlot = ['NTot_mav', 'fCoop_mav', 'NGrp_mav','groupSizeAv_mav','GrpBirths_mav','GrpDeaths_mav','GrpNetProd_mav']
+    roundTo = np.array([1000,1,1,1,1,1,1])
 
     for i in range(len(parToPlot)):
         fig = plt.figure()
@@ -121,20 +127,20 @@ def make_fig(fileName, pathSave=pathSave, pathLoad=pathLoad):
         } 
         
         #plot variables
-#        nC = par2[1].size * par3[1].size
-#        nCsub = par3[1].size
-#        nR = par1[1].size
-#        
-        nR = 2
-        nC = int(np.ceil(par1.size/nR))
-        nCsub = 1
+        nC = par2.size * par3.size
+        nCsub = par3.size
+        nR = par1.size
+##        
+#        nR = 2
+#        nC = int(np.ceil(par1.size/nR))
+#        nCsub = 1
 
         #loop over all variable parameters
         for rr in range(par1.size):
             for cc in range(par2.size):
                 for ccsub in range(par3.size):
                     index1 = rr * nC + cc * nCsub + ccsub + 1
-                    index1 = rr + 1
+#                    index1 = rr + 1
                     ax1 = plt.subplot(nR, nC, index1)
                     
                     titleName = '%s=%.1g, %s=%.2g, %s=%.2g' % (

@@ -108,7 +108,8 @@ parNameAbbrev = {
                 'K_grp'         : 'kGrp', 
                 'K_tot'         : 'kTot',
                 'model_mode'    : 'mode',
-                'slope_coef'    : 'sCof'}
+                'slope_coef'    : 'sCof',
+                'indv_tau'      : 'tInd'}
 
 
 
@@ -124,6 +125,9 @@ def create_data_name(mainName, model_par):
                    'indv_NType', 'indv_asymmetry',
                    'delta_indv','delta_grp','delta_tot','delta_size',
                    'gr_CFis','gr_SFis']
+    
+    if 'indv_tau' in model_par:
+        parListName += ['indv_tau']
 
     parName = ['_%s%.0g' %(parNameAbbrev[x], model_par[x]) for x in parListName]
     parName = ''.join(parName)

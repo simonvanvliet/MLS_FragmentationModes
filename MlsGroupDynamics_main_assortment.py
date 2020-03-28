@@ -27,7 +27,7 @@ import time
 
 #output variables to store
 stateVar = ['NTot', 'NCoop', 'fCoop',
-            'NGrp', 'groupSizeAv', 'groupSizeMed','GrpDeaths','GrpBirths','GrpNetProd']
+            'NGrp', 'groupSizeAv', 'groupSizeMed','GrpDeaths','GrpBirths']
 
 
 
@@ -164,10 +164,8 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     
     #calc change in group births and deaths
     if sample_idx>0:
-        output['GrpDeaths'][sample_idx] = NDGrp - output['GrpDeathsCumul'][sample_idx-1] 
-        output['GrpBirths'][sample_idx] = NBGrp - output['GrpBirthsCumul'][sample_idx-1] 
-        output['GrpNetProd'][sample_idx] = output['GrpBirths'][sample_idx]  - \
-                                           output['GrpDeaths'][sample_idx] 
+        output['GrpDeaths'] = output['GrpDeathsCumul'][sample_idx] - output['GrpDeathsCumul'][sample_idx-1] 
+        output['GrpBirths'] = output['GrpBirthsCumul'][sample_idx] - output['GrpBirthsCumul'][sample_idx-1] 
 
     #calc moving average 
     if sample_idx >= 1:
@@ -430,12 +428,43 @@ def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
 
     return None
 
+@jit(Tuple((i8,i8,i8))(f8, f8, i8), nopython=True)
+def calc_offspring_size(offspr_size, offspr_frac, NCellPar):
+        
+    # calc expected values
+    nPerOff_expect = offspr_size * NCellPar
+    nToOff_expect = offspr_frac * NCellPar
     
-@jit(Tuple((i8[:],i8))(f8, f8, i8), nopython=True)
-def distribute_offspring(offspr_size, offspr_frac, NCellPar):
+    #draw total number of cells passed to offspring from Poisson distribution
+    nToOff = util.truncated_poisson(nToOff_expect, NCellPar)
+    
+    if nToOff > 0 and nPerOff_expect>0: 
+        #draw size of offspring groups from truncated Poisson
+        #min group size is 1, max is nToOff
+        nPerOff = max(1, util.truncated_poisson(nPerOff_expect, nToOff))
+        #first process full offspring
+        nOffFull = int(np.floor(nToOff/nPerOff))
+        nToOffFull = nOffFull*nPerOff
+        nOffspring = nOffFull        
+        if nToOffFull < nToOff:
+            nOffspring += 1
+        
+    else:
+        nPerOff = 0;
+        nOffspring = 0
+    
+    return (nToOff,nPerOff, nOffspring)
+
+
+    
+@jit(Tuple((i8[:],i8))(f8, f8, f8[::1]), nopython=True)
+def distribute_offspring_assorted(offspr_size, offspr_frac, parentGroup):
+    NCellPar = int(parentGroup.sum())
     #vector with destination index for all cells
     #initialize to -1: stay with parent
     destinationIdx = np.full(NCellPar, -1)
+    
+    
         
     # calc expected values
     nPerOff_expect = offspr_size * NCellPar
@@ -467,7 +496,7 @@ def distribute_offspring(offspr_size, offspr_frac, NCellPar):
     
     return (destinationIdx, nOffspring)
 
-@jit(Tuple((f8[::1],f8[:, ::1],i8))(f8[::1], f8, f8), nopython=True)
+@jit(Tuple((f8[::1],f8[:, ::1]))(f8[::1], f8, f8), nopython=True)
 def fission_group(parentGroup, offspr_size, offspr_frac): 
     #get group properties
     NCellPar = int(parentGroup.sum())
@@ -501,10 +530,10 @@ def fission_group(parentGroup, offspr_size, offspr_frac):
         parrentNew = parentGroup
         offspring = np.zeros((0, 0)) 
         
-    return (parrentNew, offspring, nOffspring)
+    return (parrentNew, offspring)
 
 # process individual level events
-@jit(Tuple((f8[:, ::1], i8, i8, i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
+@jit(Tuple((f8[:, ::1], i8))(f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
 def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp, NDGrp):
     # get number of groups
     NGrp = groupMat.shape[1]
@@ -524,7 +553,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
 
         #perform fission process
         if offspr_size > 0:
-            parrentNew, offspring, nOffspring = fission_group(parentGroup, offspr_size, offspr_frac)
+            parrentNew, offspring = fission_group(parentGroup, offspr_size, offspr_frac)
 
             # only add daughter if not empty
             if offspring.size > 0:                
@@ -535,6 +564,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
                     NDGrp += 1
                 # add new daughter group
                 groupMat = np.column_stack((groupMat, offspring))
+                NBGrp += offspring.shape[1]
     
             
             NGrp = groupMat.shape[1]
@@ -544,7 +574,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
         groupMat, NGrp = remove_group(groupMat, eventGroup)
         NDGrp += 1
 
-    return (groupMat, NGrp, nOffspring)
+    return (groupMat, NGrp)
 
 
 # create helper vectors for dot products
@@ -737,11 +767,9 @@ def run_model(model_par):
                 groupsHaveChanged = True
         else:
             # group level event - select and process group level event
-            groupMat, NGrp, nOffspring = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
+            groupMat, NGrp = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
                                                  offspr_size, offspr_frac, NBGrp, NDGrp)
             groupsHaveChanged = True
-            NBGrp += nOffspring
-
 
         if groupsHaveChanged:
             if NGrp == 0:  # if all groups have died, end simulation

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Oct 15 2019
+Created on March 6 2020
 
-Last Update Oct 22 2019
+%evolution model, traits encoded at group level
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -33,10 +33,6 @@ GLOBAL Constants
 stateVar = ['NTot', 'NCoop', 'fCoop',
             'NGroup', 'groupSizeAv', 'groupSizeMed', 
             'offspr_size','offspr_frac']
-
-
-sizeGroupMatInit = 300
-sizeGroupMatIncrement = 100
 
 #setup bins and vectors for group traits
 nBinOffsprSize = 100
@@ -76,18 +72,6 @@ Init functions
 ============================================================================"""
 
 
-@jit(Tuple((f8[:, :, :, ::1], f8[::1]))(f8[:, :, :, ::1], f8[::1]), nopython=True)
-def expand_grpMat(grpMat, grpLUT):
-    matShape = grpMat.shape
-    newGrSize = matShape[1] + sizeGroupMatIncrement
-    #create new matrices
-    grpMatNew = np.zeros((matShape[0], newGrSize, matShape[2], matShape[3]))
-    grpLUTNew = np.full(newGrSize, np.nan)
-    #store old values
-    grpMatNew[:, 0:matShape[1], :, :] = grpMat
-    grpLUTNew[0:matShape[1]] = grpLUT
-    return (grpMatNew, grpLUTNew) 
-
 # initialize outputMat matrix
 def init_outputMat_matrix(model_par):
     sampleInt = model_par['sampleInt']
@@ -118,7 +102,7 @@ def init_outputMat_matrix(model_par):
 
 # initialize group matrix
 # each column is a group and lists number of [A,A',B,B'] cells
-def init_grpMat(model_par):
+def init_traitMat(model_par):
     #get properties
     NGroup = int(model_par["init_groupNum"])
     NType = int(model_par['indv_NType'])
@@ -146,62 +130,55 @@ def init_grpMat(model_par):
     nDef  = round(model_par["init_groupDens"] * (1 - model_par['init_fCoop']) / model_par['indv_NType'])
     
     # init all groups with zero
-    grpMat = np.zeros((NType * 2, sizeGroupMatInit, nBinOffsprFrac, nBinOffsprSize), order='C')
-    grpMat2D = np.zeros((NType * 2, NGroup), order='C')
+    traitMat = np.zeros((2, NGroup), dtype='i8', order='C')
+    grpMat = np.zeros((NType * 2, NGroup), order='C')
 
     # set group prop
-    grpMat[0::2, 0:NGroup, offspr_frac_idx, offspr_size_idx] = nCoop
-    grpMat[1::2, 0:NGroup, offspr_frac_idx, offspr_size_idx] = nDef
-    
-    #grpLUT maps location of group i within 4D grpMat to location of group i in 2D grpMat2D
-    #grpLUT[i] is column index of group i within grpMat2D
-    #np.nan indicates unassigned groups
-    #to go from group j (column index) in grpMat2D to index i in 4D grpMat use:
-    # i = np.nonzero(grpLUT==j)
-    grpLUT = np.full(sizeGroupMatInit, np.nan)
-    grpLUT[0:NGroup] = np.arange(NGroup)
+    traitMat[0, :] = offspr_frac_idx 
+    traitMat[1, :] = offspr_size_idx
         
-    grpMat2D[0::2, :] = nCoop
-    grpMat2D[1::2, :] = nDef
+    grpMat[0::2, :] = nCoop
+    grpMat[1::2, :] = nDef
 
-    return (grpMat, grpMat2D, grpLUT)
+    return (traitMat, grpMat)
 
 
 """============================================================================
 Sample model code 
 ============================================================================"""
-@jit(Tuple((f8[:, ::1], f8, f8))(f8[:, :, :, ::1], f8[:]), nopython=True)
-def summarize_grpMat(grpMat, grpLUT):
+@jit(Tuple((f8[:, ::1], f8, f8))(i8[:, ::1]), nopython=True)
+def summarize_traitMat(traitMat):
     #matrix with number per type
     #find existing groups and sum over all groups and cell types
-    hasGrps = np.logical_not(np.isnan(grpLUT))
-    traitDistr = grpMat[:,hasGrps,:,:].sum(axis=0).sum(axis=0) 
-    cellNumTot = traitDistr.sum()
+    traitDistr = np.zeros((nBinOffsprFrac, nBinOffsprSize))
+    grpNum = traitMat.shape[1]
+    
+    for i in range(grpNum):
+        traitDistr[traitMat[0,i], traitMat[1,i]] += 1
+    
     #calculate mean trait values using marginal distributions
-    marginalSize = traitDistr.sum(axis=0) / cellNumTot
-    marginalFrac = traitDistr.sum(axis=1) / cellNumTot
-    av_size = np.sum(binCenterOffsprSize * marginalSize)
-    av_frac = np.sum(binCenterOffsprFrac * marginalFrac)
+    av_size = np.sum(binCenterOffsprSize[traitMat[1, :]]) / grpNum
+    av_frac = np.sum(binCenterOffsprFrac[traitMat[0, :]]) / grpNum
 
     return (traitDistr, av_size, av_frac)
 
 # sample model
-def sample_model(grpMatrix, grpMat2D, grpLUT, outputMat, traitDistr, 
+def sample_model(traitMat, grpMat, outputMat, traitDistr, 
     sample_idx, currT, mavInt, rmsInt, stateVarPlus):
     # store time
     outputMat['time'][sample_idx] = currT
 
     # calc number of groups
-    shapegrpMat = grpMat2D.shape
-    NGroup = shapegrpMat[1]
-    NType = int(shapegrpMat[0] / 2)
+    shapetraitMat = grpMat.shape
+    NGroup = shapetraitMat[1]
+    NType = int(shapetraitMat[0] / 2)
 
     # summarize groups
-    traitDistrCurr, av_size, av_frac = summarize_grpMat(grpMatrix, grpLUT)
+    traitDistrCurr, av_size, av_frac = summarize_traitMat(traitMat)
 
     # get group statistics
     NTot, NCoop, groupSizeAv, groupSizeMed, NTot_type, fCoop_group, grSizeVec = mls.calc_cell_stat(
-        grpMat2D)
+        grpMat)
 
     # calc total population sizes
     for tt in range(NType):
@@ -227,37 +204,11 @@ def sample_model(grpMatrix, grpMat2D, grpLUT, outputMat, traitDistr,
                 outputMat[varname], sample_idx, mavInt)
             outputMat[outname][sample_idx] = mav
 
-    # calc rms error
-    if sample_idx >= rmsInt:
-        outputMat['rms_err_NCoop'][sample_idx] = util.calc_rms_error(
-            outputMat['NCoop_mav'], sample_idx, rmsInt) / outputMat['NCoop_mav'][sample_idx]
-        outputMat['rms_err_NGroup'][sample_idx] = util.calc_rms_error(
-            outputMat['NGroup_mav'], sample_idx, rmsInt) / outputMat['NGroup_mav'][sample_idx]
-
     # store distribution of traits
     traitDistr[sample_idx, :, :] = traitDistrCurr / NTot
 
     sample_idx += 1
     return sample_idx
-
-# sample model
-def sample_nan(grpMatrix, outputMat, traitDistr, 
-    sample_idx, currT, mavInt, rmsInt, stateVarPlus):
-    # store time
-    outputMat['time'][sample_idx] = currT
-
-    # calc total population sizes
-    for varname in stateVarPlus:
-        outname = varname + '_mav'
-        outputMat[varname][sample_idx] = np.nan
-        outputMat[outname][sample_idx] = np.nan
-        
-    outputMat['rms_err_NCoop'][sample_idx] = np.nan
-    outputMat['rms_err_NGroup'][sample_idx] = np.nan
-
-    traitDistr[sample_idx, :, :] = np.nan
-
-    return None
 
 # sample model
 def sample_extinction(outputMat, traitDistr, sample_idx, currT, stateVarPlus):
@@ -269,9 +220,6 @@ def sample_extinction(outputMat, traitDistr, sample_idx, currT, stateVarPlus):
         outname = varname + '_mav'
         outputMat[varname][sample_idx] = 0
         outputMat[outname][sample_idx] = 0
-        
-    outputMat['rms_err_NCoop'][sample_idx] = 0
-    outputMat['rms_err_NGroup'][sample_idx] = 0
 
     # calc distribution groupsizes
     traitDistr[sample_idx, :, :] = 0
@@ -279,250 +227,137 @@ def sample_extinction(outputMat, traitDistr, sample_idx, currT, stateVarPlus):
 
     return sample_idx
 
-"""============================================================================
-Sub functions individual dynamics 
-============================================================================"""
-# process individual level events
-@jit(i8(f8[:, :, :, ::1], f8[:, ::1], f8[::1], f8[::1], f8[::1], i8, i8, f8, f8, f8), nopython=True)
-def process_indv_event(grpMat, grpMat2D, grpLUT, indvRate, rand, 
-                       NType, NGroup, mutR_type, mutR_size, mutR_frac):
-    # Note: grpMat and grpMat2D are updated in place, they don't have to be returned 
-    NTypeWMut = NType*2
-    
-    # select random event based on propensity
-    eventID = util.select_random_event(indvRate, rand[0])
-    # get event type
-    eventType = math.floor(eventID / NGroup)
-    # get event group
-    grpIdx2D = eventID % NGroup  # % is modulo operator
-    typeIdx = eventType % NTypeWMut
-    #find corresponding group in 4D array
-    grpIdx4D = int(np.nonzero(grpLUT==grpIdx2D)[0].item())
-    
-    #find reproduction trait of affected cell
-    fracIdx, sizeIdx = util.select_random_event_2D(grpMat[typeIdx, grpIdx4D, :, :], rand[1]) 
-
-    # track if any groups die in process
-    groupDeathID = -1  # -1 is no death
-
-    #process event 
-    if eventType < NTypeWMut:  # birth event
-        # check for mutation in cell type
-        isWT = (typeIdx % 2) == 0  # Wild type cell
-        typeMutates = rand[2] < mutR_type  # mutates to other type
-        offsprTypeIdx = typeIdx + 1 if (isWT and typeMutates) else typeIdx
-
-        #check for mutation in offspring size
-        if rand[3] < mutR_size / 2:  # offspring size mutates to lower value
-            offsprSizeIdx = max(0, sizeIdx - 1)
-        elif rand[3] < mutR_size:  # offspring size mutates to lower value
-            offsprSizeIdx = min(nBinOffsprSize - 1, sizeIdx + 1)
-        else:
-            offsprSizeIdx = sizeIdx
-
-        #check for mutation in offspring fraction
-        if rand[4] < mutR_frac / 2:  # offspring size mutates to lower value
-            offsprFracIdx = max(0, fracIdx - 1)
-        elif rand[4] < mutR_frac:  # offspring size mutates to lower value
-            offsprFracIdx = min(nBinOffsprFrac - 1, fracIdx + 1)
-        else:
-            offsprFracIdx = fracIdx
-
-        #make sure we stay inside allowed trait space
-        offsprFracIdx = offsprFracMatrix[offsprFracIdx, offsprSizeIdx]
-        
-        # place new offspring
-        grpMat[offsprTypeIdx, grpIdx4D, offsprFracIdx, offsprSizeIdx] += 1
-        grpMat2D[offsprTypeIdx, grpIdx2D] += 1
-
-    else:  # death event
-        # remove cell from group
-        if grpMat[typeIdx, grpIdx4D, fracIdx, sizeIdx]==0:
-            raise NameError("no cell to kill")
-        grpMat[typeIdx, grpIdx4D, fracIdx, sizeIdx] -= 1
-        grpMat2D[typeIdx, grpIdx2D] -= 1
-
-        # kill group if last cell died
-        # use two stage check for increased speed
-        if grpMat2D[typeIdx, grpIdx2D] == 0:  # killed last of type
-            NINGroup = grpMat2D[:, grpIdx2D].sum()
-            if NINGroup == 0:  # all other types are zero too
-                groupDeathID = int(grpIdx2D)
-
-    return groupDeathID
-
-
-"""============================================================================
-Sub functions migration dynamics 
-============================================================================"""
-
-# process migration event
-@jit(i8(f8[:, :, :, ::1], f8[:, ::1], f8[::1], f8[::1], i8, i8, f8[::1]), nopython=True)
-def process_migration_event(grpMat, grpMat2D, grpLUT, grSizeVec, NGroup, NType, rand):
-    # Note: grpMat is updated in place, it does not need to be returned
-
-    # select random group of origin based on size
-    grpIDSource = util.select_random_event(grSizeVec, rand[0])
-    #find corresponding group in 4D array
-    grpIdSource4D = int(np.nonzero(grpLUT==grpIDSource)[0].item())
-
-    # select random type of migrant based on population size
-    typeIdx = util.select_random_event(grpMat2D[:, grpIDSource], rand[1])
-        
-    # find trait of affected cell
-    fracIdx, sizeIdx = util.select_random_event_2D(grpMat[typeIdx, grpIDSource, :, :], rand[2])
-    
-    # select random target group
-    grpIDTarget = int(np.floor(rand[3] * NGroup))
-    #find corresponding group in 4D array
-    grpIdTarget4D = np.nonzero(grpLUT==grpIDTarget)[0].item()
-
-    #perform migration
-    grpMat[typeIdx, grpIdSource4D, fracIdx, sizeIdx] -= 1
-    grpMat[typeIdx, grpIdTarget4D, fracIdx, sizeIdx] += 1
-    
-    grpMat2D[typeIdx, grpIDSource] -= 1
-    grpMat2D[typeIdx, grpIDTarget] += 1
-
-    # track if any groups die in process
-    groupDeathID = int(-1)  # -1 is no death
-
-    # kill group if last cell died
-    # use two stage check for increased speed
-    if grpMat2D[typeIdx, grpIDSource] == 0:  # killed last of type
-        NINGroup = grpMat2D[:, grpIDSource].sum()
-        if NINGroup == 0:  # all other types are zero too
-            groupDeathID = int(grpIDSource)
-
-    return groupDeathID
-
 
 """============================================================================
 Sub functions group dynamics 
 ============================================================================"""
 
 # remove group from group matrix
-@jit(f8[:, ::1](f8[:, :, :, ::1], f8[:, ::1], f8[:], i8), nopython=True)
-def remove_group(grpMat, grpMat2D, grpLUT, groupDeathID):
-    #grpMat and grpLUT modified in place
-    #first remove group from 4D matrix by setting its index to -1
-    #find corresponding group in 4D array
-    grpIdTarget4D = int(np.nonzero(grpLUT==groupDeathID)[0].item())
-    #for safety set group traits to zero (should not be needed, remove for speed)
-    grpLUT[grpIdTarget4D] = np.nan
-    grpMat[:, grpIdTarget4D, :, :] = 0
-    
-    #now remove group from 2D matrix
-    NGrp = grpMat2D.shape[1]
+@jit(Tuple((i8[:, ::1], f8[:, ::1]))(i8[:, ::1], f8[:, ::1], i8), nopython=True)
+def remove_group(traitMat, grpMat, groupDeathID):
+    #find group that died
+    NGrp = grpMat.shape[1]
     hasDied = np.zeros(NGrp)
     hasDied[groupDeathID] = 1
     # copy remaining groups to new matrix
-    grpMat2DNew = grpMat2D[:, hasDied == 0]
-    grpMat2DNew = grpMat2DNew.copy()
+    grpMatNew = grpMat[:, hasDied == 0]
+    grpMatNew = grpMatNew.copy()
+   
+    # copy traits of remaining groups to new matrix
+    traitMatNew = traitMat[:, hasDied == 0]
+    traitMatNew = traitMatNew.copy()
+        
+    return (traitMatNew, grpMatNew)
+
+
+@jit(UniTuple(i8, 2)(f8, f8, i8, i8, f8[::1]), nopython=True)
+def mutate_group(mutR_frac, mutR_size, fracIdx, sizeIdx, rand):
+    #check for mutation in offspring size
+    if rand[0].item() < mutR_size / 2:  # offspring size mutates to lower value
+        offsprSizeIdx = max(0, sizeIdx - 1)
+    elif rand[0].item() < mutR_size:  # offspring size mutates to lower value
+        offsprSizeIdx = min(nBinOffsprSize - 1, sizeIdx + 1)
+    else:
+        offsprSizeIdx = sizeIdx
+
+    #check for mutation in offspring fraction
+    if rand[1].item() < mutR_frac / 2:  # offspring size mutates to lower value
+        offsprFracIdx = max(0, fracIdx - 1)
+    elif rand[1].item() < mutR_frac:  # offspring size mutates to lower value
+        offsprFracIdx = min(nBinOffsprFrac - 1, fracIdx + 1)
+    else:
+        offsprFracIdx = fracIdx
+
+    #make sure we stay inside allowed trait space
+    offsprFracIdx = offsprFracMatrix[offsprFracIdx, offsprSizeIdx]
     
-    #update grpLUT to reflect changed positions
-    grpLUT[grpLUT > groupDeathID] -= 1
+    return (offsprFracIdx, offsprSizeIdx)
     
-    return grpMat2DNew
-
-@jit(Tuple((f8, f8, f8))(f8[:, :, ::1]), nopython=True, debug=True)
-def calc_mean_group_prop(parentGroup):
-    #parent group: type / frac  / size  
-    #sum over all cell types   
-    parTraitMatrix = parentGroup.sum(axis=0)
-    #number of cells in parents
-    NCellPar = parTraitMatrix.sum()
-
-    #calculate average trait values using marginal distributions 
-    marginalSize = parTraitMatrix.sum(axis=0) / NCellPar
-    marginalFrac = parTraitMatrix.sum(axis=1) / NCellPar
-    offspr_size = np.sum(binCenterOffsprSize * marginalSize)
-    offspr_frac = np.sum(binCenterOffsprFrac * marginalFrac)
-    return(offspr_size, offspr_frac, NCellPar)
-
-
-@jit(Tuple((f8[:, :, :, ::1], f8[:, ::1], f8[::1]))(f8[:, :, :, ::1], f8[:, ::1], f8[::1], i8), nopython=True)
-def fission_group(grpMat, grpMat2D, grpLUT, eventGroup):  
-    #find corresponding group in 4D array
-    grpIdx4D = int(np.nonzero(grpLUT==eventGroup)[0].item())
+@jit(Tuple((i8[:, ::1], f8[:, ::1]))(i8[:, ::1], f8[:, ::1], i8, f8, f8), nopython=True)
+def fission_group(traitMat, grpMat, eventGroup, mutR_frac, mutR_size):
+    #get parent
+    parentGroup = grpMat[:, eventGroup].copy()
     
-    #get parent group
-    parentGroup = grpMat[:, grpIdx4D, :, :].copy()
-    #get group properties
-    offspr_size, offspr_frac, NCellPar = calc_mean_group_prop(parentGroup)
+    #get parent properties
+    fracIdx = traitMat[0, eventGroup]
+    sizeIdx = traitMat[1, eventGroup]
+    offspr_frac = binCenterOffsprFrac[fracIdx]
+    offspr_size = binCenterOffsprSize[sizeIdx]
     NCellPar = int(parentGroup.sum())
     
     #distribute cells   
-    destinationIdx, nOffspring = mls.distribute_offspring(offspr_size, 
-                                                          offspr_frac, 
-                                                          NCellPar)
+    destIdx, nOffspring = mls.distribute_offspring(offspr_size,
+                                                   offspr_frac, 
+                                                   NCellPar)  
     
     if nOffspring > 0: 
-        if np.sum(destinationIdx==-1) > 0:
+        if np.sum(destIdx==-1) > 0:
             #consider parent to be new group, remove old parent
-            destinationIdx += 1
+            destIdx += 1
             nPar = 1
         else:
             nPar = 0
                 
-        #remove parent from 4D matrice (copy stored in parentGroup)
-        grpLUT[grpIdx4D] = np.nan
-        grpMat[:, grpIdx4D, :, :] = 0
-        
-        #find empty spots for new groups
-        emptyPlaces = np.nonzero(np.isnan(grpLUT))[0]    
-        #check if there are enough empty sites, if not grow matrix
-        if nOffspring > emptyPlaces.size - 1:
-            grpMat, grpLUT = expand_grpMat(grpMat, grpLUT)
-            emptyPlaces = np.nonzero(np.isnan(grpLUT))[0]  
-      
         #init new 2D array  
-        matShape2D = grpMat2D.shape
+        matShape2D = grpMat.shape
         nGrpAdded = nOffspring + nPar
         nGrpNew = matShape2D[1] + nGrpAdded - 1
-        grpMat2DNew = np.zeros((matShape2D[0], nGrpNew))
         isParent = np.zeros(matShape2D[1])
         isParent[eventGroup] = 1
         
-        #store existing groups at end, exclude parent  
-        grpMat2DNew[:, nGrpAdded::] = grpMat2D[:, isParent==0]
-        grpMat2DNew = grpMat2DNew.copy()
+        grpMatNew = np.zeros((matShape2D[0], nGrpNew))
+        traitMatNew = np.zeros((2, nGrpNew), dtype=i8)
         
-        #update grpLUT to reflect new positions
-        grpLUT[grpLUT > eventGroup] += (nGrpAdded - 1)
-        grpLUT[grpLUT < eventGroup] += nGrpAdded
-        grpLUT[emptyPlaces[0:nGrpAdded]] = np.arange(nGrpAdded)
+        #store existing groups at end, exclude parent  
+        grpMatNew[:, nGrpAdded::] = grpMat[:, isParent==0]
+        grpMatNew = grpMatNew.copy()
+        
+        traitMatNew[:, nGrpAdded::] = traitMat[:, isParent==0]
+        traitMatNew = traitMatNew.copy()
         
         #find non zero elements
-        ttIDx, ffIdx, ssIdx = np.nonzero(parentGroup)
+        ttIDxTuple = np.nonzero(parentGroup)
+        ttIDxVec = ttIDxTuple[0]
+        
         #loop all cells in parentgroup and assign to new group
         idx = 0
-        for ii in range(ttIDx.size):
-            numCell = parentGroup[ttIDx[ii], ffIdx[ii], ssIdx[ii]]
+        for ttIDx in ttIDxVec:
+            numCell = parentGroup[ttIDx]
             while numCell>0:
-                currDest = destinationIdx[idx]
-                currDest4D = emptyPlaces[currDest]
-                grpMat[ttIDx[ii],
-                        currDest4D,
-                        ffIdx[ii],
-                        ssIdx[ii]] += 1
-                
-                grpMat2DNew[ttIDx[ii],
-                            currDest] += 1
+                currDest = destIdx[idx]
+                grpMatNew[ttIDx, currDest] += 1
                 numCell -= 1
                 idx += 1   
+        
+        #mutate offspring groups
+        rndMat = np.random.random((nOffspring,2))
+        idx = 0
+        if nPar==1: #re-assign parent traits 
+            traitMatNew[0, idx] = fracIdx
+            traitMatNew[1, idx] = sizeIdx
+            idx += 1
+        for n in range(nOffspring):
+            #mutate offspring
+            offsprFracIdx, offsprSizeIdx = mutate_group(mutR_frac, mutR_size, 
+                                                        fracIdx, sizeIdx, 
+                                                        rndMat[n,:])
+             
+            traitMatNew[0, idx] = offsprFracIdx
+            traitMatNew[1, idx] = offsprSizeIdx
+            idx += 1
                                              
     else:
         #nothing happens
-        grpMat2DNew = grpMat2D
+        grpMatNew = grpMat
+        traitMatNew = traitMat
                 
-    return (grpMat, grpMat2DNew, grpLUT)
+    return (traitMatNew, grpMatNew)
 
-# process individual level events
-@jit(Tuple((f8[:, :, :, ::1], f8[:, ::1], f8[::1]))(f8[:, :, :, ::1], f8[:, ::1], f8[::1], f8[::1], f8[::1]), nopython=True)
-def process_group_event(grpMat, grpMat2D, grpLUT, grpRate, rand):
+# process group level events
+@jit(Tuple((i8[:, ::1], f8[:, ::1]))(i8[:, ::1], f8[:, ::1], f8[::1], f8[::1], f8, f8), nopython=True)
+def process_group_event(traitMat, grpMat, grpRate, rand, mutR_frac, mutR_size):
     # get number of groups
-    NGroup = grpMat2D.shape[1]
+    NGroup = grpMat.shape[1]
 
     # select random event based on propensity
     eventID = util.select_random_event(grpRate, rand[0])
@@ -533,26 +368,13 @@ def process_group_event(grpMat, grpMat2D, grpLUT, grpRate, rand):
     
     if eventType < 1:
         # fission event - add new group and split cells
-        grpMat, grpMat2D, grpLUT = fission_group(grpMat, grpMat2D, grpLUT, eventGroup)
+        traitMat, grpMat = fission_group(traitMat, grpMat, 
+                                        eventGroup,
+                                        mutR_frac, mutR_size)
     else:
         # extinction event - remove group
-        grpMat2D = remove_group(grpMat, grpMat2D, grpLUT, eventGroup)
-    return (grpMat, grpMat2D, grpLUT)
-
-
-#calc group properties
-# calc total number of individuals per group, use matrix product for speed
-@jit(Tuple((f8[:, ::1], f8[::1], f8))(f8[:, :, :, ::1], f8[::1], f8[::1]), nopython=True)
-def calc_group_state(grpMat, onesNType, onesNGrp):
-    #matrix with number per type
-    grpMat2D = grpMat.sum(axis=3).sum(axis=2)
-    #vector with size of each group
-    grSizeVec = onesNType @ grpMat2D
-    #float total number of individuals
-    NTot = onesNGrp @ grSizeVec
-
-    return(grpMat2D, grSizeVec, NTot)
-
+        traitMat, grpMat = remove_group(traitMat, grpMat, eventGroup)
+    return (traitMat, grpMat)
 
 
 """============================================================================
@@ -605,15 +427,15 @@ def run_model(model_par):
     onesNType, birthRVec, deathR = mls.adjust_indv_rates(model_par)
     
     # initialize group matrix
-    grpMat, grpMat2D, grpLUT = init_grpMat(model_par)
-    NGroup = grpMat2D.shape[1]
+    traitMat, grpMat = init_traitMat(model_par)
+    NGroup = grpMat.shape[1]
 
     #init dynamic helper vectors
     onesNGrp, onesIndR, onesGrR, indvRate, grpRate = mls.create_helper_vector(
         NGroup, NType)
 
     # get first sample of init state
-    sampleIdx = sample_model(grpMat, grpMat2D, grpLUT, 
+    sampleIdx = sample_model(traitMat, grpMat, 
                              outputMat, traitDistr, 
                              sampleIdx, currT, mavInt, rmsInt, 
                              stateVarPlus)
@@ -626,16 +448,16 @@ def run_model(model_par):
             ttR = 0 
 
         #calc group state
-        grSizeVec, NTot = mls.calc_group_state(grpMat2D, 
+        grSizeVec, NTot = mls.calc_group_state(grpMat, 
                                                onesNType, onesNGrp)    
 
         # calc rates of individual level events
-        mls.calc_indv_rates(indvRate, grpMat2D, grSizeVec, birthRVec,
+        mls.calc_indv_rates(indvRate, grpMat, grSizeVec, birthRVec,
                             deathR, delta_indv, NType, NGroup)
         
         
         # calc rates of group events
-        mls.calc_group_rates(grpRate, grpMat2D, grSizeVec, NTot, NGroup,
+        mls.calc_group_rates(grpRate, grpMat, grSizeVec, NTot, NGroup,
                             gr_CFis, gr_SFis, K_grp, K_tot,
                             delta_grp, delta_tot, delta_size)
 
@@ -653,27 +475,30 @@ def run_model(model_par):
         groupsHaveChanged = False
         if rescaledRand < indvProp:
             # individual level event - select and process individual level event
-            groupDeathID = process_indv_event(grpMat, grpMat2D, grpLUT, indvRate, 
-                                              randMat[ttR, 2:7], NType, NGroup, 
-                                              mutR_type, mutR_size, mutR_frac)
+            groupDeathID = mls.process_indv_event(grpMat, indvRate, 
+                                                  mutR_type, randMat[ttR, 2:4], 
+                                                  NType, NGroup)
             if groupDeathID > -1:  # remove empty group
-                grpMat2D = remove_group(grpMat, grpMat2D, grpLUT, groupDeathID)
+                traitMat, grpMat = remove_group(traitMat, grpMat, groupDeathID)
                 groupsHaveChanged = True
         elif rescaledRand < (indvProp + migrProp):
             # migration event - select and process migration event
-            groupDeathID = process_migration_event(grpMat, grpMat2D, grpLUT, grSizeVec, 
-                                                   NGroup, NType, randMat[ttR, 2:6])
+            groupDeathID = mls.process_migration_event(grpMat, grSizeVec,
+                                                       NGroup, NType, 
+                                                       randMat[ttR, 2:5])
             if groupDeathID > -1:  # remove empty group
-                grpMat2D = remove_group(grpMat, grpMat2D, grpLUT, groupDeathID)
+                traitMat, grpMat = remove_group(traitMat, grpMat, groupDeathID)
                 groupsHaveChanged = True
         else:
             # group level event - select and process group level event
-            grpMat, grpMat2D, grpLUT= process_group_event(grpMat, grpMat2D, grpLUT, grpRate, randMat[ttR, 2:4])
+            traitMat, grpMat = process_group_event(traitMat, grpMat, 
+                                                    grpRate, randMat[ttR, 2:4],
+                                                    mutR_frac, mutR_size)
             groupsHaveChanged = True
          
         # update group matrices if needed    
         if groupsHaveChanged:
-            NGroup = grpMat2D.shape[1]
+            NGroup = grpMat.shape[1]
             if NGroup > 0:  #update group matrices
                 onesNGrp, onesIndR, onesGrR, indvRate, grpRate = mls.create_helper_vector(
                     NGroup, NType) 
@@ -688,7 +513,7 @@ def run_model(model_par):
         # sample model at intervals
         nextSampleT = sampleInt * sampleIdx
         if currT >= nextSampleT:
-            sampleIdx = sample_model(grpMat, grpMat2D, grpLUT, 
+            sampleIdx = sample_model(traitMat, grpMat, 
                              outputMat, traitDistr, 
                              sampleIdx, currT, mavInt, rmsInt, 
                              stateVarPlus)
@@ -748,13 +573,13 @@ def single_run_save(model_par, mainName):
     fileName = mainName + parName + '.npz'
     
     #run model and save data to disk
-    try: 
-        outputMat, traitDistr = run_model(model_par)  
-        np.savez(fileName, output=outputMat, traitDistr=traitDistr,
-                 model_par=[model_par])
-    except:
-        print("error with run")
-        traitDistr = np.full((1, nBinOffsprFrac, nBinOffsprSize), np.nan)
+    #try: 
+    outputMat, traitDistr = run_model(model_par)  
+    np.savez(fileName, output=outputMat, traitDistr=traitDistr,
+             model_par=[model_par])
+#    except:
+#        print("error with run")
+#        traitDistr = np.full((1, nBinOffsprFrac, nBinOffsprSize), np.nan)
     
     return traitDistr
     
@@ -765,7 +590,7 @@ if __name__ == "__main__":
 
     model_par = {
         #time and run settings
-        "maxT":             30,  # total run time
+        "maxT":             5,  # total run time
         "maxPopSize":       0,  #stop simulation if population exceeds this number
         "minT":             10,    # min run time
         "sampleInt":        1,      # sampling interval
@@ -797,9 +622,9 @@ if __name__ == "__main__":
         'gr_SFis':          4,
         'indv_tau':         0.1,
         # extinction rate
-        'delta_grp':        0,      # exponent of denisty dependence on group #
+        'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,    # carrying capacity of groups
-        'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
+        'delta_tot':        1,      # exponent of density dependence on total #individual
         'K_tot':            5000,   # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # initial settings for fissioning
