@@ -1,4 +1,4 @@
-# Readme 
+# Readme
 
 ## Author: Simon van Vliet & Gil Henriques
 vanvliet@zoology.ubc.ca
@@ -45,6 +45,7 @@ Code can scan up to 3 additional parameters
 Results are stored in single file on disk
 
 Plot result with: plotScanStates.py
+Export results to CSV with exportScanStates.py
 
 Code supports parallel cores
 
@@ -60,19 +61,21 @@ Code can scan up to 3 additional parameters
 Results are stored in single file on disk
 
 Plot result with: plotParScanTransect.py
+Export results to CSV with exportParScanTransect.py
 
 Code supports parallel cores
 
 #### MlsGroupDynamics_scanMutationalMeltdown.py
 Scans 2D parameter space (fractional size of offspring, and fraction of parent assigned to offspring)
 
-For each location in parameter space the maximal mutational load is calculated. i.e. the maximum mutation rate at which the population can maintain a non-zero density. 
+For each location in parameter space the maximal mutational load is calculated. i.e. the maximum mutation rate at which the population can maintain a non-zero density.
 
 Code can scan up to 3 additional parameters
 
 Results are stored in single file on disk
 
 Plot result with: plotMutationalMeltdown.py
+Export results to CSV with exportMutationalMeltdown.py
 
 Code supports parallel cores
 
@@ -106,7 +109,7 @@ Results for each run individually stored on disk.
 
 Plot results with plotEvolutionBatch.py and plotEvolutionBatchMovie.py
 
-Code supports parallel cores 
+Code supports parallel cores
 
 #### MlsEvoBatchGroup.py		
 Performs multiple runs of evolution model with traits varying at group level, varying model parameters and initial state.
@@ -115,7 +118,7 @@ Results for each run individually stored on disk.
 
 Plot results with plotEvolutionBatch.py and plotEvolutionBatchMovie.py
 
-Code supports parallel cores 
+Code supports parallel cores
 
 ### plotting utility scripts
 #### MlsGroupDynamics_plotUtilities.py

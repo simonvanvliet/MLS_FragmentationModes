@@ -206,7 +206,7 @@ def plot_mutational_meltdown(fig, ax, offSizeVec, offsFracVec, statData, plotDat
     numY = offsFracVec.size
     #init matrix to NaN
     dataMatrix = np.full((numY, numX), np.nan)
-    
+        
     #init logical vector
     dataIdx = np.ones_like(statData, dtype=np.int16)
     

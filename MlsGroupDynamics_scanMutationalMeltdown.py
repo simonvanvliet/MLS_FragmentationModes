@@ -190,12 +190,24 @@ def create_model_par_list(model_par):
 def run_meltdown_scan(model_par, numRepeat):
     #init output
     maxMu = np.full(numRepeat, np.nan)
-    maxLoad = np.full(numRepeat, np.nan)
     NTot = np.full(numRepeat, np.nan)
     NCoop = np.full(numRepeat, np.nan)
-    NCoop = np.full(numRepeat, np.nan)
     NGrp = np.full(numRepeat, np.nan)
+    
+    #input parameters to store
+    parList = ['indv_NType', 'indv_cost', 'indv_K', 
+               'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
+               'gr_SFis', 'gr_CFis', 'alpha_Fis', 'K_grp', 'K_tot',
+               'delta_grp', 'delta_tot', 'delta_size',
+               'offspr_size','offspr_frac']
+    
+    dTypeList = [(x, 'f8') for x in parList]
+    dType = np.dtype(dTypeList)
 
+    outputMat = np.full(1, np.nan, dType)
+    for par in parList:
+        outputMat[par] = model_par[par]
+    
     #loop repeats
     for rr in range(numRepeat):
         #init state
@@ -210,10 +222,10 @@ def run_meltdown_scan(model_par, numRepeat):
             if output['NTot'][-1] > 0:
                 hasMeltdown = False
                 maxMu[rr] = model_par['indv_mutR']
-                maxLoad[rr] = model_par['indv_mutR'] * model_par['indv_cost']
                 NTot[rr] = output['NTot_mav']
                 NCoop[rr] = output['NCoop_mav']
                 NGrp[rr] = output['NGrp_mav']
+                
             else:
                 idx += 1
                 
@@ -221,29 +233,23 @@ def run_meltdown_scan(model_par, numRepeat):
             if idx >= mu_Vec.size:
                 hasMeltdown = False
                 
-        if rr==0:
-            outputMat = output  
-        else:
-            outputMat = np.vstack((outputMat, output))
     
-    return (maxMu, maxLoad, NTot, NCoop, NGrp, outputMat)
+    return (maxMu, NTot, NCoop, NGrp, outputMat)
 
 #run model code
 def run_model(mainName, model_par, numRepeat):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-    modelParList = modelParList[:2]
     # run model, use parallel cores 
     nJobs = min(len(modelParList), numCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(run_meltdown_scan)(par, numRepeat) for par in modelParList)
 
-    # process and store output
-    maxMu, maxLoad, NTot, NCoop, NGrp, output = zip(*results)
+    #process and store output
+    maxMu, NTot, NCoop, NGrp, output = zip(*results)
     statData   = np.vstack(output) 
     maxMu      = np.vstack(maxMu)
-    maxLoad    = np.vstack(maxLoad)
     NTot       = np.vstack(NTot)
     NCoop      = np.vstack(NCoop)
     NGrp       = np.vstack(NGrp)
@@ -252,12 +258,11 @@ def run_model(mainName, model_par, numRepeat):
     dataFileName = create_data_name(mainName, model_par)
     dataFilePath = dataFileName + '.npz'
     np.savez(dataFilePath, 
-             statData    = statData,
-             maxMu       = maxMu,
-             maxLoad     = maxLoad,
-             NTot        = NTot,
-             NCoop       = NCoop,
-             NGrp        = NGrp,
+             statData   = statData,
+             maxMu      = maxMu,
+             NTot       = NTot,
+             NCoop      = NCoop,
+             NGrp       = NGrp,
              numRepeat  = numRepeat,
              offsprSize = offspr_size_Vec, 
              offsprFrac = offspr_frac_Vec,

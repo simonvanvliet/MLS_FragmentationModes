@@ -26,7 +26,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'grpRates_March11_kInd1e+02_fisC0.01_kTot2e+04_nTyp2_asym1.npz'
+fileName = 'March28_kInd1e+02_fisC0_kTot1e+04_nTyp1_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 pathLoad = Path(".")
@@ -112,7 +112,7 @@ def make_fig(fileName, pathSave=pathSave, pathLoad=pathLoad):
 
     for i in range(len(parToPlot)):
         fig = plt.figure()
-        pltutl.set_fig_size_cm(fig, 30, 20)
+        pltutl.set_fig_size_cm(fig, 45, 20)
     
         curPar = parToPlot[i]
     

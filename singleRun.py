@@ -27,7 +27,7 @@ K_tot_def = 20000
 model_par = {
         #time and run settings
         "maxT":             10000,  # total run time
-        "maxPopSize":       100000,  #stop simulation if population exceeds this number
+        "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             200,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
@@ -52,7 +52,7 @@ model_par = {
         # setting for group rates
         # fission rate
         'gr_CFis':          1/100,
-        'gr_SFis':          4,
+        'gr_SFis':          0.2,
         'alpha_Fis':        20,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #

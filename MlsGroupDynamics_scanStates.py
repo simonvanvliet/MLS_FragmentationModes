@@ -33,7 +33,7 @@ Define parameters
 numCore = 44 #number of cores to run code on
 
 #set name of output
-mainName = 'March28'
+mainName = 'April13'
 
 #setup variables to scan
 
@@ -43,19 +43,19 @@ offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #set other parameters to scan
 parNames = ['gr_SFis', 'delta_indv', 'alpha_Fis'] #parameter keys
-par0_vec = np.array([0.2, 4, 8]) #parameter values
+par0_vec = np.array([1, 4, 8]) #parameter values
 par1_vec = np.array([1, 0]) #parameter values
-par2_vec = np.array([1, 10, 20]) #parameter values
+par2_vec = np.array([1, 2, 5]) #parameter values
 
 #set constant model settings
-K_tot_def = 20000
+K_tot_def = 10000
 K_tot_multiplier = 6 #if SFis=0 increase K_tot by this factor  
 
 
 model_par = {
         #time and run settings
-        "maxT":             10000,  # total run time
-        "maxPopSize":       100000,  #stop simulation if population exceeds this number
+        "maxT":             2000,  # total run time
+        "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             200,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
@@ -71,7 +71,7 @@ model_par = {
         "indv_NType":       1,
         "indv_asymmetry":   1,      # difference in growth rate b(j+1) = b(j) / asymmetry
         # mutation load
-        "indv_cost":        0.01,   # cost of cooperation
+        "indv_cost":        0,   # cost of cooperation
         "indv_mutR":        0,   # mutation rate to cheaters
         "indv_migrR":       0,      # mutation rate to cheaters
         # group size control
@@ -79,7 +79,7 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          1/100,
+        'gr_CFis':          0,
         'gr_SFis':          0,
         'alpha_Fis':        1,
         # extinction rate

@@ -25,11 +25,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 #set name of file to load (no extension)
-fileName = 'MutationMeltdown_March9_kInd1e+02_fisC0.01_kTot3e+04_asym1.npz'
+fileName = 'MutationMeltdown_March28_kInd1e+02_fisC0.01_kTot3e+04_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
 data_folder = Path(".")
-fig_folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/")
+fig_folder = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/MutationalMeltdown/")
 
 """============================================================================
 Set figure options 
@@ -89,27 +89,32 @@ def make_fig(fileName, pathSave=fig_folder, pathLoad=data_folder):
     loadName   = pathLoad / (fileName + '.npz')
     data_file   = np.load(loadName, allow_pickle=True)
     statData   = data_file['statData']
-    maxMu      = data_file['maxMu'] 
-    maxLoad    = data_file['maxLoad']
+    maxMu      = data_file['maxMu']
+    NTot       = data_file['NTot']
+    NCoop      = data_file['NCoop']
+    NGrp       = data_file['NGrp']
+    numRepeat  = data_file['numRepeat']
     offsprSize = data_file['offsprSize'] 
     offsprFrac = data_file['offsprFrac']
     mutR       = data_file['mutR']
-    migrR      = data_file['migrR']
-    SFis       = data_file['SFis']
-    cost       = data_file['cost']
-    NCoop      = data_file['NCoop']
-    NTot       = data_file['NTot']
-    NGrp       = data_file['NGrp']
+    mode_vec   = data_file['mode_vec']
+    par0_vec   = data_file['par0_vec']
+    par1_vec   = data_file['par1_vec']
+    mode_set   = data_file['mode_set']
+    modeNames  = data_file['modeNames']
+    parNames   = data_file['parNames']
     data_file.close()
+    
+    
     
     """============================================================================
     Make plot
     ============================================================================"""
     
     fig = plt.figure()
-    pltutl.set_fig_size_cm(fig, 30, 20)
+    pltutl.set_fig_size_cm(fig, 60, 30)
     
-    plotData = np.log10(maxMu.reshape((-1,1)))
+    plotData = np.log10(np.reshape(np.nanmean(maxMu,axis=1),(-1,1)))
     
     plotSettings = {
       'vmin'    :   np.min(np.log10(mutR)),
@@ -122,25 +127,27 @@ def make_fig(fileName, pathSave=fig_folder, pathLoad=data_folder):
     }
     
    #plot variables
-    nC = SFis.size * migrR.size
-    nCsub = migrR.size
-    nR = cost.size
+    nC = mode_vec.size
+    nRsub = par1_vec.size
+    nR = par0_vec.size * par1_vec.size
 
     #loop over all variable parameters
-    for rr in range(cost.size):
-        for cc in range(SFis.size):
-            for ccsub in range(migrR.size):
-                index1 = rr * nC + cc * nCsub + ccsub + 1
+    for rr in range(par0_vec.size):
+        for rrsub in range(par1_vec.size):
+            for cc in range(mode_vec.size):
+                index1 = (rr * nRsub + rrsub) * nC + cc + 1
                 ax1 = plt.subplot(nR, nC, index1)
                 
-                titleName = 'SFis=%.1g, migrR=%.2g, cost=%.2g' % (
-                    SFis[cc], migrR[ccsub], cost[rr])
+                titleName = '%s=%.2g, %s=%.2g, %s=%.2g, %s=%.2g' % (
+                    modeNames[0], mode_set[0, cc], 
+                    modeNames[1], mode_set[1, cc],
+                    parNames[0],  par0_vec[rr],
+                    parNames[1],  par1_vec[rrsub])
                 
-                keyDict = {
-                        'gr_SFis': SFis[cc],
-                        'indv_cost': cost[rr],
-                        'indv_migrR': migrR[ccsub],
-                    }
+                keyDict = { modeNames[0]: mode_set[0, cc], 
+                            modeNames[1]: mode_set[1, cc],
+                            parNames[0]:  par0_vec[rr],
+                            parNames[1]:  par1_vec[rrsub]}
                 
                 pltutl.plot_mutational_meltdown(fig, ax1, 
                                                 offsprSize, offsprFrac, 
