@@ -74,7 +74,7 @@ def plot_heatmap(fig, axs, data, yName, type='lin'):
 # run model, plot dynamics
 
 
-def plot_single_run(model_par, output, distFCoop, distGrSize):
+def plot_single_run(model_par, output, distFCoop=None, distGrSize=None, plotTypeCells='lin', plotTypeGroup='lin'):
     # setup figure formatting
     font = {'family': 'arial',
             'weight': 'normal',
@@ -88,8 +88,8 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
 
     # plot number of groups
     plt.subplot(nR, nC, 1)
-    plot_data(output, "NGrp")
-    plot_data(output, "NGrp_mav")
+    plot_data(output, "NGrp", type=plotTypeGroup)
+    plot_data(output, "NGrp_mav", type=plotTypeGroup)
 
     plt.ylabel("# group")
     plt.legend()
@@ -97,22 +97,22 @@ def plot_single_run(model_par, output, distFCoop, distGrSize):
     # plot number of cells
     plt.subplot(nR, nC, 2)
     for tt in range(int(model_par['indv_NType'])):
-        plot_data(output, 'N%i' % tt)
-        plot_data(output, 'N%imut' % tt)
+        plot_data(output, 'N%i' % tt, type=plotTypeCells)
+        plot_data(output, 'N%imut' % tt, type=plotTypeCells)
     plt.ylabel("# cell")
     plt.legend()
 
     # plot fraction of coop
     plt.subplot(nR, nC, 3)
-    plot_data(output, "NCoop")
-    plot_data(output, "NCoop_mav")
+    plot_data(output, "NCoop", type=plotTypeCells)
+    plot_data(output, "NCoop_mav", type=plotTypeCells)
     plt.ylabel("density cooperator")
     plt.legend()
 
     # plot rms error
     plt.subplot(nR, nC, 4)
-    plot_data(output, "rms_err_NCoop",type='log')
-    plot_data(output, "rms_err_NGrp",type='log')
+    plot_data(output, "rms_err_NCoop", type='log')
+    plot_data(output, "rms_err_NGrp", type='log')
     plt.legend()
     plt.ylabel("rms error")
     

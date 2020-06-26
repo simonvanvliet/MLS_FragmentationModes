@@ -259,8 +259,8 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
-def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, NType, NGrp):
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8, f8), nopython=True)
+def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, NType, NGrp, alpha_b):
     
     #loop cell types
     for tt in range(NType):
@@ -287,8 +287,18 @@ def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, N
                     coopPart *= groupMat[pp*2, :] / grSizeVec
                 
         # calc rates
-        rates[bIdxC1: bIdxC1 + NGrp] = birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
-        rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
+        if alpha_b != 0: 
+            # to simulate results from Pichugin et al
+            # implements group size dependent birth rate grpBEf = (Ni/Kind)^alpha_b
+            # 1/Kind = deathR
+            grpBEf = (deathR * grSizeVec) ** alpha_b
+            rates[bIdxC1: bIdxC1 + NGrp] = grpBEf * birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
+            rates[bIdxD1: bIdxD1 + NGrp] = grpBEf * birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
+        else:
+            rates[bIdxC1: bIdxC1 + NGrp] = birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
+            rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
+
+      
         if delta_indv != 0:
             rates[dIdxC1: dIdxC1 + NGrp] = deathR * groupMat[cIdx, :] * (grSizeVec ** delta_indv)
             rates[dIdxD1: dIdxD1 + NGrp] = deathR * groupMat[dIdx, :] * (grSizeVec ** delta_indv)
@@ -398,16 +408,13 @@ def remove_group(groupMat, groupDeathID):
 
 
 # calculate fission and extinction rate of all groups
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
 def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp, 
-    gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
+    gr_CFis, gr_SFis, K_grp, K_tot,
     delta_grp, delta_tot, delta_size):
 
     # calc fission rate
-    if alpha_Fis != 1:
-        fissionR = (grSizeVec ** alpha_Fis) * gr_SFis + gr_CFis
-    else:
-        fissionR = grSizeVec * gr_SFis + gr_CFis
+    fissionR = grSizeVec * gr_SFis + gr_CFis
   
     # calc extinction rate
     if delta_grp != 0:
@@ -636,7 +643,7 @@ def run_model(model_par):
     #get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / indv_K
-    alpha_Fis  = float(model_par['alpha_Fis'])
+    alpha_b    = float(model_par['alpha_b'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -704,11 +711,11 @@ def run_model(model_par):
         # calc rates of individual level events
         calc_indv_rates(indvRate, groupMat, grSizeVec, birthRVec,
                         indv_deathR, delta_indv,
-                        NType, NGrp)
+                        NType, NGrp, alpha_b)
         
         # calc rates of group events
         calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
-                        gr_CFis, gr_SFis, alpha_Fis, K_grp, K_tot,
+                        gr_CFis, gr_SFis, K_grp, K_tot,
                         delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
@@ -824,7 +831,7 @@ def single_run_finalstate(model_par):
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 
                'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
-               'gr_SFis', 'gr_CFis', 'alpha_Fis', 'K_grp', 'K_tot',
+               'gr_SFis', 'gr_CFis', 'alpha_b', 'K_grp', 'K_tot',
                'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size','offspr_frac','run_idx','perimeter_loc']
                                                         
@@ -892,7 +899,7 @@ if __name__ == "__main__":
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          1/50,
-        'alpha_Fis':        1,
+        'alpha_b':          0,
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,    # carrying capacity of groups

@@ -24,10 +24,12 @@ import numpy as np
 from pathlib import Path
 
 #set name of file to load
-fileName = 'transect_Feb28_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01_newFormat.npz'
+fileName = 'transect_March1_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01.npz'
+
+#fileName = 'transect_Feb28_cost0.01_migR0_kInd1e+02_kGrp0_kTot3e+04_asym1_dInd1_dGrp0_dTot1_dSiz0_fisC0.01_newFormat.npz'
 
 #set Folder
-pathLoad = Path(".")
+pathLoad = Path("./Data/")
 pathSave = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/Transects/")
 
 
@@ -88,7 +90,9 @@ for data in Output:
 
 parList = modelParList[0]
 
-   
+#convert to 1d coulmn vector
+statData = np.reshape(statData,(-1,1))   
+
 #save main data file
 dataName = pathSave / (fileName + '_data' + '.csv')
 header=','.join(statData.dtype.names)

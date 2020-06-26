@@ -25,7 +25,7 @@ from pathlib import Path
 fileName = 'MutationMeltdown_March28_kInd1e+02_fisC0.01_kTot3e+04_asym1.npz'
 
 #data_folder = Path(str(Path.home())+"/Desktop/MLS_GroupDynamics-MultipleTypes/Data/")
-pathLoad = Path(".")
+pathLoad = Path("./Data/")
 pathSave = Path("/Users/simonvanvliet/ownCloud/MLS_GroupDynamics_shared/Figures/MutationalMeltdown/")
 
 
@@ -76,9 +76,9 @@ dataNames = ('av_maxMu', 'av_NTot_mav','av_NCoop_mav','av_NGrp_mav') + statData.
 
    
 #save main data file
-dataName = pathSave / (fileName + '_data' + '.csv')
+filePath = pathSave / (fileName + '_data' + '.csv')
 header=','.join(dataNames)
-np.savetxt(dataName, data, delimiter=',', header=header, comments='')
+np.savetxt(filePath, data, delimiter=',', header=header, comments='')
 
 #save meta data file
 metaDataName = pathSave / (fileName + '_metaData' + '.txt')
@@ -109,6 +109,3 @@ for key, val in parList.items():
     fid.write('%s = %f\n' % (key, val))
 
 fid.close()
-
-header=','.join(statData.dtype.names)
-np.savetxt(dataName, statData.view(np.float64), delimiter=',', header=header, comments='')

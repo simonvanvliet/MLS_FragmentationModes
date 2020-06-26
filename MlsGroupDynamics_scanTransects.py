@@ -85,7 +85,7 @@ model_par = {
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          0,
-        'alpha_Fis':        1,
+        'alpha_b':          0,
         # extinction rate
         'delta_grp':        0,      # exponent of denisty dependence on group #
         'K_grp':            0,    # carrying capacity of groups
@@ -113,7 +113,7 @@ parNameAbbrev = {
                 'delta_size'    : 'dSiz',
                 'gr_CFis'       : 'fisC',
                 'gr_SFis'       : 'fisS',
-                'alpha_Fis'     : 'fisA',
+                'alpha_b'       : 'alph',
                 'indv_NType'    : 'nTyp', 
                 'indv_asymmetry': 'asym',
                 'indv_cost'     : 'cost', 
