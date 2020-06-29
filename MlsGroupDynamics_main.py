@@ -259,8 +259,8 @@ Sub functions individual dynamics
 # calculate birth and death rate for all groups and types
 # @jit provides speedup by compling this function at start of execution
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8, f8), nopython=True)
-def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, NType, NGrp, alpha_b):
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
+def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, NType, NGrp):
     
     #loop cell types
     for tt in range(NType):
@@ -287,16 +287,8 @@ def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, N
                     coopPart *= groupMat[pp*2, :] / grSizeVec
                 
         # calc rates
-        if alpha_b != 0: 
-            # to simulate results from Pichugin et al
-            # implements group size dependent birth rate grpBEf = (Ni/Kind)^alpha_b
-            # 1/Kind = deathR
-            grpBEf = (deathR * grSizeVec) ** alpha_b
-            rates[bIdxC1: bIdxC1 + NGrp] = grpBEf * birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
-            rates[bIdxD1: bIdxD1 + NGrp] = grpBEf * birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
-        else:
-            rates[bIdxC1: bIdxC1 + NGrp] = birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
-            rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
+        rates[bIdxC1: bIdxC1 + NGrp] = birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
+        rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
 
       
         if delta_indv != 0:
@@ -635,15 +627,12 @@ def run_model(model_par):
     delta_indv = float(model_par['delta_indv'])
     inv_migrR  = float(model_par['indv_migrR'])
     indv_K     = float(model_par['indv_K'])
-    if 'indv_tau' in model_par:
-        indv_tau   = float(model_par['indv_tau'])
-    else:
-        indv_tau = 1
+    grp_tau    = float(model_par['grp_tau'])
+    
         
     #get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / indv_K
-    alpha_b    = float(model_par['alpha_b'])
     K_grp      = float(model_par['K_grp'])
     K_tot      = float(model_par['K_tot'])
     delta_grp  = float(model_par['delta_grp'])
@@ -711,7 +700,7 @@ def run_model(model_par):
         # calc rates of individual level events
         calc_indv_rates(indvRate, groupMat, grSizeVec, birthRVec,
                         indv_deathR, delta_indv,
-                        NType, NGrp, alpha_b)
+                        NType, NGrp)
         
         # calc rates of group events
         calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
@@ -719,8 +708,8 @@ def run_model(model_par):
                         delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
-        indvProp = indv_tau * (onesIndR @ indvRate)
-        groupProp = onesGrpR @ grpRate
+        indvProp = (onesIndR @ indvRate)
+        groupProp = grp_tau * (onesGrpR @ grpRate)
         migrProp = inv_migrR * NTot
         totProp = indvProp + groupProp + migrProp
 
@@ -899,7 +888,7 @@ if __name__ == "__main__":
         # fission rate
         'gr_CFis':          1/100,
         'gr_SFis':          1/50,
-        'alpha_b':          0,
+        'grp_tau':          1,
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,    # carrying capacity of groups

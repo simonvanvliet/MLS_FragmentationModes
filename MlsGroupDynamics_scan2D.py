@@ -80,7 +80,7 @@ model_par = {
         # fission rate
         'gr_SFis':          0,
         'gr_CFis':          1/100,
-        'alpha_b':          0,
+        'grp_tau':          1,
         # extinction rate
         'delta_group':      1,      # exponent of denisty dependence on group #
         'K_group':          1000,    # carrying capacity of groups

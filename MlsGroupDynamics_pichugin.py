@@ -232,9 +232,15 @@ def run_model(model_par):
             # check if final population size has been reached 
             if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
                 break
+            
+            if currT > model_par['maxT']:
+                output = None
+                break
+            
 
     # cut off non existing time points at end
-    output = output[0:sampleIdx]
+    if output is not None:
+        output = output[0:sampleIdx]
 
     return output
 
@@ -258,36 +264,33 @@ def single_run_trajectories(model_par):
     output = run_model(model_par)    
     end = time.time()
     
-    varDescript = np.array([model_par['indv_K'],
-                            model_par['alpha_b'],
-                            model_par['offspr_size'],
-                            model_par['offspr_frac']])
-    
-    colNames = ('indv_K', 'alpha_b','offspr_size', 'offspr_frac','timeSeries')
-        
-    cellState = np.insert(output['NTot'], 0, varDescript)
-    grpState  = np.insert(output['NGrp'], 0, varDescript)
-    timeState = np.insert(output['time'], 0, varDescript)
-    
     #Fit growth rates
-    startFit = model_par['startFit']
-    toFit = output['NTot'] >= startFit
-    tFit = output['time'][toFit]
-    logNFit = np.log10(output['NTot'][toFit])
-    
-    slope, intercept, r_value, p_value, std_err = stats.linregress(tFit, logNFit)
-    
+    if output is not None:
+        startFit = model_par['startFit']
+        toFit = output['NTot'] >= startFit
+        tFit = output['time'][toFit]
+        logNFit = np.log10(output['NTot'][toFit])
+        logNGrpFit = np.log10(output['NGrp'][toFit])
+        
+        r_tot, _, corr_coef_tot, _, _ = stats.linregress(tFit, logNFit)
+        r_groups, _, corr_coef_groups, _, _ = stats.linregress(tFit, logNGrpFit)
+    else:
+        r_tot = np.nan
+        r_groups = np.nan
+        corr_coef_tot = np.nan
+        corr_coef_groups = np.nan
+
+
     # init output matrix
     dType = np.dtype([
         ('indv_K', 'f8'),
         ('alpha_b', 'f8'),
         ('offspr_size', 'f8'),
         ('offspr_frac', 'f8'),
-        ('growthRate', 'f8'),
-        ('intercept_fit', 'f8'),
-        ('r_value_fit', 'f8'),
-        ('p_value_fit', 'f8'),
-        ('std_err_fit', 'f8')])
+        ('r_groups', 'f8'),
+        ('r_tot', 'f8'),
+        ('corr_coef_groups', 'f8'),
+        ('corr_coef_tot', 'f8')])
     output = np.zeros(1, dType)
     
     #store output
@@ -295,11 +298,10 @@ def single_run_trajectories(model_par):
     output['alpha_b'] = model_par['alpha_b']
     output['offspr_size'] = model_par['offspr_size']
     output['offspr_frac'] = model_par['offspr_frac']
-    output['growthRate'] = slope
-    output['intercept_fit'] = intercept
-    output['r_value_fit'] = r_value
-    output['p_value_fit'] = p_value
-    output['std_err_fit'] = std_err
+    output['r_groups'] = r_groups
+    output['r_tot'] = r_tot
+    output['corr_coef_groups'] = corr_coef_groups
+    output['corr_coef_tot'] = corr_coef_tot
 
     return (output)
 
@@ -339,6 +341,7 @@ if __name__ == "__main__":
         'gr_CFis':          1/100,
         'gr_SFis':          1/50,
         'alpha_b':          0,
+        'grp_tau':          1,
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,    # carrying capacity of groups

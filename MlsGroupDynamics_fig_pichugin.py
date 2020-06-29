@@ -55,22 +55,22 @@ offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #set other parameters to scan
 parNames = ['alpha_b','indv_K'] #parameter keys
-par0_vec = np.array([0.01, 0.1, 1, 10, 100]) #parameter values
+par0_vec = np.array([50, 20, 10, 1, 0.1, 0.05, 0.02]) #parameter values
 par1_vec = np.array([20]) #parameter values
 
 #set model parameters
 model_par = {
         #time and run settings
-        "maxT":             1000,  # total run time
+        "maxT":             100,  # total run time
         "maxPopSize":       endPopSize,  #stop simulation if population exceeds this number
         "startFit":         startFit,  #start fit of growth rate here
         "sampleInt":        0.05, # sampling interval
         "mav_window":       1,   # average over this time window
         "rms_window":       1,   # calc rms change over this time window
         # settings for initial condition
-        "init_groupNum":    50,  # initial # groups
+        "init_groupNum":    100,  # initial # groups
         "init_fCoop":       1,   # DO NOT CHANGE, code only works if init_fCoop = 1
-        "init_groupDens":   20,  # initial total cell number in group
+        "init_groupDens":   10,  # initial total cell number in group
         # settings for individual level dynamics
         "indv_NType":       1,  # DO NOT CHANGE, code only works if indv_NType = 1
         "indv_mutR":        0,  # DO NOT CHANGE, code only works if indv_mutR = 0
@@ -81,6 +81,7 @@ model_par = {
         # fission rate
         'gr_CFis':          1E6, # when group size >= Kind this is fission rate
         'alpha_b':          1,
+        'grp_tau':          1,
         # settings for fissioning
         'offspr_size':      0.1,  # offspr_size <= 0.5 and
         'offspr_frac':      0.9,  # offspr_size < offspr_frac < 1-offspr_size'
@@ -107,20 +108,11 @@ def set_model_par(model_par, settings):
 #load data
 def export_growthrate_csv(results, mainName):
     # process and store output
-    cellState, grpState, timeState, colNames = zip(*results)
-        
-    header = 'dataType,' + (','.join(colNames[0]))
-    numData = len(cellState)
-    
+    statData = np.vstack(results)
+    #save main data file
     dataName = mainName + '.csv'
-    fid = open(dataName, 'w') 
-    fid.write(header + '\n')
-    for i in range(numData):
-        fid.write('time,' + ','.join(map(str, timeState[i])) + '\n')
-        fid.write('NTot,' + ','.join(map(str, cellState[i])) + '\n')
-        fid.write('NGrp,' + ','.join(map(str, grpState[i])) + '\n')
-    fid.close()
-    
+    header = ','.join(statData.dtype.names)
+    np.savetxt(dataName, statData.view(np.float64), delimiter=',', header=header, comments='')
     return None
 
 
@@ -163,7 +155,7 @@ def run_model(mainName, model_par, numCore):
     np.savez(dataFilePath, results   = results)
 
     #store output as csv
-    export_csv(results, mainName)
+    export_growthrate_csv(results, mainName)
 
     return results
 

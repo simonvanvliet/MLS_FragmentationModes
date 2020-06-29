@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 18 2019
+Created on 2020-06-26
 
-Last Update Oct 22 2019
-
-Run single model and plot result
+Run single model and export to csv
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -19,20 +17,23 @@ Run Model and plot results
 
 #load code
 import MlsGroupDynamics_main as mls
-import plotSingleRun as pltRun
-import time
+import pandas as pd
+from joblib import Parallel, delayed
 
-#set model parameters
-K_tot_def = 20000
+
+#SET OUTPUT FILENAME
+fileName = 'multipleRunTest'
+
+#SET model parameters
 model_par = {
         #time and run settings
         "maxT":             5000,  # total run time
         "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             200,    # min run time
         "sampleInt":        1,      # sampling interval
-        "mav_window":       100,    # average over this time window
-        "rms_window":       100,    # calc rms change over this time window
-        "rms_err_trNCoop":  1E-2,   # when to stop calculations
+        "mav_window":       200,    # average over this time window
+        "rms_window":       200,    # calc rms change over this time window
+        "rms_err_trNCoop":  5E-2,   # when to stop calculations
         "rms_err_trNGr":    5E-2,   # when to stop calculations
         # settings for initial condition
         "init_groupNum":    100,     # initial # groups
@@ -71,17 +72,26 @@ model_par = {
 
 
 
-#run model
+modelParList = [model_par, model_par]
 
-# run code
-start = time.time()
-output, distFCoop, distGrSize = mls.run_model(model_par)
-pltRun.plot_single_run(model_par, output, distFCoop, distGrSize)
+# run model
 
-end = time.time()
+results = Parallel(n_jobs=2, verbose=9, timeout=1.E9)(
+        delayed(mls.run_model)(par) for par in modelParList)
 
-# print timing
-print("Elapsed time run 1 = %s" % (end - start))
+# process and store output
+output, distFCoop, distGrSize = zip(*results)
+
+
+    
+    
+#output, _, _ = mls.run_model(model_par)
+#
+## convert to pandas dataframe and export
+#df = pd.DataFrame.from_records(output)
+#dataName = fileName + '.pkl'
+#df.to_pickle(dataName)
+#
 
 
 
