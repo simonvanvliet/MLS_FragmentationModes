@@ -22,8 +22,8 @@ from numba.types import Tuple, UniTuple
 from numba import jit, f8, i8
 import math
 import numpy as np
-import MlsGroupDynamics_utilities as util
-import MlsGroupDynamics_main as mls
+from mainCode import MlsGroupDynamics_utilities as util
+from mainCode import MlsGroupDynamics_main as mls
 import time
 
 

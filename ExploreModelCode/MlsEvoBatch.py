@@ -10,8 +10,11 @@ Use MlsBatch with same settings to create reference parameter space scans
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
-import MlsGroupDynamics_evolve as mls
-import MlsGroupDynamics_utilities as util
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_evolve as mls
+from mainCode import MlsGroupDynamics_utilities as util
 import numpy as np
 from joblib import Parallel, delayed
 

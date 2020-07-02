@@ -10,9 +10,12 @@ Creates a batch of evolution movies created with MlsEvoBatch
 vanvliet@zoology.ubc.ca
 """
 
+import sys
+sys.path.insert(0, '..')
+
 import numpy as np
 import makeEvolutionMovie as evomo
-import MlsGroupDynamics_plotUtilities as pltutl
+from mainCode import MlsGroupDynamics_plotUtilities as pltutl
 from pathlib import Path
 import glob
 

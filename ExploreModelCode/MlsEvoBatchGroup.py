@@ -9,8 +9,11 @@ Results can be plotted using plotEvolutionBatch an plotEvolutionBatchMovie
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
-import MlsGroupDynamics_evolve_groups as mlsg
-import MlsGroupDynamics_utilities as util
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_evolve_groups as mlsg
+from mainCode  import MlsGroupDynamics_utilities as util
 import numpy as np
 from joblib import Parallel, delayed
 

@@ -26,8 +26,8 @@ from numba import jit, void, f8, i8
 import math
 import numpy as np
 import scipy.stats as stats
-import MlsGroupDynamics_utilities as util
-import MlsGroupDynamics_main as mls
+from mainCode import MlsGroupDynamics_utilities as util
+from mainCode import MlsGroupDynamics_main as mls
 import time
 
 #output variables to store
@@ -282,6 +282,8 @@ def single_run_trajectories(model_par):
 
     # init output matrix
     dType = np.dtype([
+        ('run_idx', 'f8'),
+        ('replicate_idx', 'f8'),
         ('indv_K', 'f8'),
         ('alpha_b', 'f8'),
         ('offspr_size', 'f8'),
@@ -293,6 +295,8 @@ def single_run_trajectories(model_par):
     output = np.zeros(1, dType)
     
     #store output
+    output['run_idx'] = model_par['run_idx']
+    output['replicate_idx'] = model_par['replicate_idx']
     output['indv_K'] = model_par['indv_K']
     output['alpha_b'] = model_par['alpha_b']
     output['offspr_size'] = model_par['offspr_size']

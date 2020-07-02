@@ -22,7 +22,10 @@ Import dependencies & define global constants
 ============================================================================"""
 
 
-import MlsGroupDynamics_main as mls
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_main as mls
 from pathlib import Path
 import datetime
 from joblib import Parallel, delayed

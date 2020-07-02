@@ -18,8 +18,12 @@ henriques@zoology.ubc.ca
 """============================================================================
 Import dependencies & define global constants
 ============================================================================"""
+
+import sys
+sys.path.insert(0, '..')
+
 import matplotlib as mpl
-import MlsGroupDynamics_plotUtilities as pltutl
+from mainCode import MlsGroupDynamics_plotUtilities as pltutl
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt

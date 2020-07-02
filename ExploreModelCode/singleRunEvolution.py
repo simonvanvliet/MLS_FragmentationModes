@@ -19,7 +19,10 @@ Run Model and plot results
 ============================================================================"""
 
 #load code
-import MlsGroupDynamics_evolve as mlse
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_evolve as mlse
 import plotSingleRun_evolution as pltRun
 import plotEvolutionMovie as evomo
 import numpy as np

@@ -16,9 +16,12 @@ henriques@zoology.ubc.ca
 Run Model and plot results
 ============================================================================"""
 
+import sys
+sys.path.insert(0, '..')
+
 #load code
-import MlsGroupDynamics_main as mls
-#import pandas as pd
+from mainCode import MlsGroupDynamics_main as mls
+import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
 
@@ -82,7 +85,7 @@ model_par = {
         # settings for fissioning
         'offspr_size':      0.01,  # offspr_size <= 0.5 and
         'offspr_frac':      0.01,    # offspr_size < offspr_frac < 1-offspr_size'
-         # extra settings
+        # extra settings
         'run_idx':          1,
         'replicate_idx':    1,
         'perimeter_loc':    0
@@ -119,8 +122,8 @@ def create_model_par_list(model_par):
                 settings = {'indv_mutR'      : mutR,
                             'run_idx'        : run_idx,
                             'replicate_idx'  : repIdx+1,
-                            'offspr_sizeInit': xyLoc_vec[initLocIdx, 0],
-                            'offspr_fracInit': xyLoc_vec[initLocIdx, 1]}
+                            'offspr_size'    : xyLoc_vec[initLocIdx, 0],
+                            'offspr_frac'    : xyLoc_vec[initLocIdx, 1]}
 
                 curPar = set_model_par(model_par, settings)
                 modelParList.append(curPar)
@@ -140,13 +143,13 @@ def run_model():
     
     #store output to disk 
     fileNameTemp = fileName + '_temp' + '.npy'
-    fileNameFull = fileName + '.pkl'
     np.save(fileNameTemp, results)
     
-    # #convert to pandas dataframe and export
-    # outputComb = np.hstack(results)
-    # df = pd.DataFrame.from_records(outputComb)
-    # df.to_pickle(fileNameFull)
+    #convert to pandas dataframe and export
+    fileNameFull = fileName + '.pkl'
+    outputComb = np.hstack(results)
+    df = pd.DataFrame.from_records(outputComb)
+    df.to_pickle(fileNameFull)
     
     return None
 

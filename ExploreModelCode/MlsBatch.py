@@ -10,9 +10,12 @@ Has been succeeded by MlsGroupDynamics_scanStates, use this only together with M
 @author: simonvanvliet
 vanvliet@zoology.ubc.ca
 """
-import MlsGroupDynamics_scan2D as mls
+import sys
+sys.path.insert(0, '..')
+
 import numpy as np
-import MlsGroupDynamics_utilities as util
+from mainCode import MlsGroupDynamics_scan2D as mls
+from mainCode import MlsGroupDynamics_utilities as util
 
 """ 
 SET SETTINGS

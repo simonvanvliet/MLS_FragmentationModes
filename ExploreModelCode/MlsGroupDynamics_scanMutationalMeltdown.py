@@ -19,7 +19,10 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
-import MlsGroupDynamics_main as mls
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_main as mls
 from joblib import Parallel, delayed
 import numpy as np
 #import plotParScan

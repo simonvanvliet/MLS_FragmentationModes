@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2020-06-26
+Updated 2020-07-02
 
-Run single model and export to csv
+Run single model and export to Pandas dataframe
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -15,8 +16,11 @@ henriques@zoology.ubc.ca
 Run Model and plot results
 ============================================================================"""
 
+import sys
+sys.path.insert(0, '..')
+
 #load code
-import MlsGroupDynamics_main as mls
+from mainCode import MlsGroupDynamics_main as mls
 import pandas as pd
 
 #SET OUTPUT FILENAME

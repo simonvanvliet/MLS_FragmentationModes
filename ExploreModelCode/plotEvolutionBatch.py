@@ -9,9 +9,12 @@ Plots a batch of evolution runs created with MlsEvoBatch
 vanvliet@zoology.ubc.ca
 """
 
+import sys
+sys.path.insert(0, '..')
+
 import numpy as np
 #import plotEvolutionMovie as evomo
-import MlsGroupDynamics_plotUtilities as pltutl
+from mainCode import MlsGroupDynamics_plotUtilities as pltutl
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib

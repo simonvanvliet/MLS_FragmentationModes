@@ -22,8 +22,11 @@ henriques@zoology.ubc.ca
 Import dependencies & define global constants
 ============================================================================"""
 
+import sys
+sys.path.insert(0, '..')
+
 import itertools
-import MlsGroupDynamics_main as mls
+from mainCode import MlsGroupDynamics_main as mls
 import datetime
 from joblib import Parallel, delayed, parallel_backend
 import numpy as np

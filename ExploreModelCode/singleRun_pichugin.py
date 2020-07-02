@@ -15,7 +15,10 @@ Run Model and plot results
 ============================================================================"""
 
 #load code
-import MlsGroupDynamics_pichugin as mls
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_pichugin as mls
 import plotSingleRun as pltRun
 import time
 

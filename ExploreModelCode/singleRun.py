@@ -17,8 +17,10 @@ henriques@zoology.ubc.ca
 Run Model and plot results
 ============================================================================"""
 
-#load code
-import MlsGroupDynamics_main as mls
+import sys
+sys.path.insert(0, '..')
+
+from mainCode import MlsGroupDynamics_main as mls
 import plotSingleRun as pltRun
 import time
 
@@ -26,7 +28,7 @@ import time
 K_tot_def = 20000
 model_par = {
         #time and run settings
-        "maxT":             1000,  # total run time
+        "maxT":             100,  # total run time
         "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             200,    # min run time
         "sampleInt":        1,      # sampling interval

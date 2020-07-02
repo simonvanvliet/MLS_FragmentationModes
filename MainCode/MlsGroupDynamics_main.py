@@ -22,7 +22,7 @@ from numba.types import UniTuple, Tuple
 from numba import jit, void, f8, i8
 import math
 import numpy as np
-import MlsGroupDynamics_utilities as util
+from mainCode import MlsGroupDynamics_utilities as util
 import time
 
 #output variables to store
@@ -845,6 +845,63 @@ def run_model_dynamics_fig(model_par):
         
     return (output_matrix)
 
+#run model store only final state 
+def run_model_steadyState_fig(model_par):
+    """[Runs MLS model and stores steady state]
+    
+    Parameters
+    ----------
+    model_par : [Dictionary]
+        [Stores model parameters]
+    
+    Returns
+    -------
+    output_matrix : [Numpy recarray]
+        [Contains steady state values of system variables and parameters]
+
+    """    
+    # run model
+    output, distFCoop, distGrSize = run_model(model_par)    
+    numt = output.size
+    
+    #input parameters to store
+    parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'offspr_size','offspr_frac',
+               'indv_K', 'K_tot',
+               'delta_indv', 'delta_tot', 'delta_size', 'delta_grp', 'K_grp']
+                                    
+    stateVarPlus = stateVar + \
+        ['N%i' % x for x in range(model_par['indv_NType'])] + \
+        ['N%imut' % x for x in range(model_par['indv_NType'])]
+    
+    # init output matrix
+    dTypeList1 = [(x, 'f8') for x in parList]
+    dTypeList2 = [(x, 'f8') for x in stateVarPlus]
+    dTypeList3 = [(x+'_mav', 'f8') for x in stateVarPlus]
+    dTypeList =  [('run_idx', 'f8')] +  [('replicate_idx', 'f8')] + \
+                dTypeList1 + dTypeList2 + dTypeList3
+                
+    dType = np.dtype(dTypeList)
+    output_matrix = np.zeros((1), dType)    
+    
+    # store temporal dynamics
+    for var in stateVarPlus:
+        output_matrix[var] = output[var][-1]
+        var_mav = var + '_mav'
+        output_matrix[var_mav] = output[var_mav][-1]
+    
+    for par in parList:
+        output_matrix[par] = model_par[par]
+        
+    output_matrix['run_idx'] = model_par['run_idx']
+    
+    if 'replicate_idx' in model_par:
+        output_matrix['replicate_idx'] = model_par['replicate_idx']
+    else:
+        output_matrix['replicate_idx'] = 1   
+        
+    return (output_matrix)
 
 
 #run model store only final state 
@@ -875,9 +932,9 @@ def single_run_finalstate(model_par):
     #input parameters to store
     parList = ['indv_NType', 'indv_cost', 'indv_K', 
                'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
-               'gr_SFis', 'gr_CFis', 'alpha_b', 'K_grp', 'K_tot',
+               'gr_SFis', 'gr_CFis', 'K_grp', 'K_tot',
                'delta_grp', 'delta_tot', 'delta_size',
-               'offspr_size','offspr_frac','run_idx','perimeter_loc']
+               'offspr_size','offspr_frac','run_idx']
                                                         
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
