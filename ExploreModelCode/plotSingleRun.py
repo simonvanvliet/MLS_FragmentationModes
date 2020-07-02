@@ -83,7 +83,7 @@ def plot_single_run(model_par, output, distFCoop=None, distGrSize=None, plotType
 
     # open figure
     fig = plt.figure()
-    nR = 3
+    nR = 2
     nC = 2
 
     # plot number of groups
@@ -104,33 +104,33 @@ def plot_single_run(model_par, output, distFCoop=None, distGrSize=None, plotType
 
     # plot fraction of coop
     plt.subplot(nR, nC, 3)
-    plot_data(output, "NCoop", type=plotTypeCells)
-    plot_data(output, "NCoop_mav", type=plotTypeCells)
-    plt.ylabel("density cooperator")
+    plot_data(output, "NTot", type=plotTypeCells)
+    plot_data(output, "NTot_mav", type=plotTypeCells)
+    plt.ylabel("total density")
     plt.legend()
 
-    # plot rms error
-    plt.subplot(nR, nC, 4)
-    plot_data(output, "rms_err_NCoop", type='log')
-    plot_data(output, "rms_err_NGrp", type='log')
-    plt.legend()
-    plt.ylabel("rms error")
-    
+#    # plot rms error
+#    plt.subplot(nR, nC, 4)
+#    plot_data(output, "rms_err_NTot", type='log')
+#    plot_data(output, "rms_err_NGrp", type='log')
+#    plt.legend()
+#    plt.ylabel("rms error")
+#    
     
      # plot fraction of coop
-    plt.subplot(nR, nC, 5)
+    plt.subplot(nR, nC, 4)
     plot_data(output, "groupSizeAv")
     plot_data(output, "groupSizeAv_mav")
     plt.ylabel("mean group size")
     plt.legend()
 
-    # plot rms error
-    plt.subplot(nR, nC, 6)
-    plot_data(output, "GrpBirths")
-    plot_data(output, "GrpDeaths")
-    plot_data(output, "GrpNetProd")
-    plt.legend()
-    plt.ylabel("median group size")
+    # # plot rms error
+    # plt.subplot(nR, nC, 6)
+    # plot_data(output, "GrpBirths")
+    # plot_data(output, "GrpDeaths")
+    # plot_data(output, "GrpNetProd")
+    # plt.legend()
+    # plt.ylabel("median group size")
     
 
 #    #plot distribution group size

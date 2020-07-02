@@ -22,7 +22,7 @@ import time
 #set model parameters
 model_par = {
         #time and run settings
-        "maxT":             1000,  # total run time
+        "maxT":             100,  # total run time
         "maxPopSize":       1E5,  #stop simulation if population exceeds this number
         "startFit":         2E4,  #start fit of growth rate here
         "sampleInt":        0.05, # sampling interval
@@ -56,7 +56,6 @@ model_par = {
 start = time.time()
 output = mls.run_model(model_par)
 pltRun.plot_single_run(model_par, output, plotTypeCells='log', plotTypeGroup='log')
-
 end = time.time()
 
 # print timing

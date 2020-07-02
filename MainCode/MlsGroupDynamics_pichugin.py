@@ -31,8 +31,7 @@ import MlsGroupDynamics_main as mls
 import time
 
 #output variables to store
-stateVar = ['NTot', 'NCoop', 'fCoop',
-            'NGrp', 'groupSizeAv', 'groupSizeMed','GrpDeaths','GrpBirths','GrpNetProd']
+stateVar = ['NTot', 'fCoop', 'NGrp', 'groupSizeAv', 'groupSizeMed']
 
 """============================================================================
 Pichugin et al like rate functions  

@@ -26,8 +26,7 @@ import MlsGroupDynamics_utilities as util
 import time
 
 #output variables to store
-stateVar = ['NTot', 'NCoop', 'fCoop',
-            'NGrp', 'groupSizeAv', 'groupSizeMed','GrpDeaths','GrpBirths','GrpNetProd']
+stateVar = ['NTot', 'fCoop', 'NGrp', 'groupSizeAv', 'groupSizeMed']
 
 
 """============================================================================
@@ -43,7 +42,7 @@ def init_output_matrix(model_par):
     numTSample = int(np.ceil(maxT / sampleInt) + 1)
     
     #create list of state variables to store
-    addVar = ['rms_err_NCoop', 'rms_err_NGrp', 'time','GrpDeathsCumul','GrpBirthsCumul']
+    addVar = ['rms_err_NTot', 'rms_err_NGrp', 'time']
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
                 ['N%imut' % x for x in range(model_par['indv_NType'])]
@@ -153,23 +152,12 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
         output['N%imut' %tt][sample_idx] = NTot_type[tt*2+1]
        
     output['NTot'][sample_idx] = NTot
-    output['NCoop'][sample_idx] = NCoop
     output['fCoop'][sample_idx] = NCoop / NTot
     
     output['NGrp'][sample_idx] = NGrp
     output['groupSizeAv'][sample_idx] = groupSizeAv
     output['groupSizeMed'][sample_idx] = groupSizeMed
     
-    output['GrpDeathsCumul'][sample_idx] = NDGrp
-    output['GrpBirthsCumul'][sample_idx] = NBGrp
-    
-    #calc change in group births and deaths
-    if sample_idx>0:
-        output['GrpDeaths'][sample_idx] = NDGrp - output['GrpDeathsCumul'][sample_idx-1] 
-        output['GrpBirths'][sample_idx] = NBGrp - output['GrpBirthsCumul'][sample_idx-1] 
-        output['GrpNetProd'][sample_idx] = output['GrpBirths'][sample_idx]  - \
-                                           output['GrpDeaths'][sample_idx] 
-
     #calc moving average 
     if sample_idx >= 1:
         for varname in stateVarPlus:
@@ -180,11 +168,11 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
 
     # calc rms error
     if sample_idx >= rmsInt:
-        if output['NCoop_mav'][sample_idx] > 0:
-            output['rms_err_NCoop'][sample_idx] = util.calc_rms_error(
-                    output['NCoop_mav'], sample_idx, rmsInt) / output['NCoop_mav'][sample_idx]
+        if output['NTot_mav'][sample_idx] > 0:
+            output['rms_err_NTot'][sample_idx] = util.calc_rms_error(
+                    output['NTot_mav'], sample_idx, rmsInt) / output['NTot_mav'][sample_idx]
         else:
-            output['rms_err_NCoop'][sample_idx] = np.nan    
+            output['rms_err_NTot'][sample_idx] = np.nan    
         output['rms_err_NGrp'][sample_idx] = util.calc_rms_error(
             output['NGrp_mav'], sample_idx, rmsInt) / output['NGrp_mav'][sample_idx]
 
@@ -213,7 +201,6 @@ def sample_nan(groupMatrix, output, distFCoop, binFCoop,
         output['N%imut' %tt][sample_idx] = np.nan
        
     output['NTot'][sample_idx] = np.nan
-    output['NCoop'][sample_idx] = np.nan
     output['fCoop'][sample_idx] = np.nan
     
     output['NGrp'][sample_idx] = np.nan
@@ -225,7 +212,8 @@ def sample_nan(groupMatrix, output, distFCoop, binFCoop,
         outname = varname + '_mav'
         output[outname][sample_idx] = np.nan
 
-    return None
+    sample_idx += 1
+    return sample_idx
 
 # sample model
 def sample_extinction(output, distFCoop, binFCoop,
@@ -239,7 +227,7 @@ def sample_extinction(output, distFCoop, binFCoop,
         output[varname][sample_idx] = 0
         output[outname][sample_idx] = 0
         
-    output['rms_err_NCoop'][sample_idx] = 0
+    output['rms_err_NTot'][sample_idx] = 0
     output['rms_err_NGrp'][sample_idx] = 0
 
     # calc distribution groupsizes
@@ -762,7 +750,7 @@ def run_model(model_par):
                                      NBGrp, NDGrp)
             # check if steady state has been reached
             if currT > minTRun:
-                NCoopStable = output['rms_err_NCoop'][sampleIdx - 1] \
+                NCoopStable = output['rms_err_NTot'][sampleIdx - 1] \
                     < model_par['rms_err_trNCoop']
                 NGrpStable = output['rms_err_NGrp'][sampleIdx - 1] \
                     < model_par['rms_err_trNGr']
@@ -772,18 +760,24 @@ def run_model(model_par):
                 
             # check if population size remains in bounds
             if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
-                sample_nan(groupMat, output, distFCoop, binFCoop,
+                sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
                                      distGrSize, binGrSize, sampleIdx - 1, 
                                      currT, mavInt, rmsInt, stateVarPlus)
                 break
 
+        # check if simulation ends before reaching steady state 
+        if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
+            sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
+                                    distGrSize, binGrSize, sampleIdx - 1, 
+                                    currT, mavInt, rmsInt, stateVarPlus)
+            break
+    
+    
+    
     # cut off non existing time points at end
     output = output[0:sampleIdx]
     distFCoop = distFCoop[0:sampleIdx, :]
     distGrSize = distGrSize[0:sampleIdx, :]
-    
-    if output['NCoop'][-1] == 0:
-        output['NCoop_mav'][-1] = 0
     
     return (output, distFCoop, distGrSize)
 
@@ -791,6 +785,67 @@ def run_model(model_par):
 """============================================================================
 Code that calls model and plots results
 ============================================================================"""
+
+
+#run model store only final state 
+def run_model_dynamics_fig(model_par):
+    """[Runs MLS model and stores dynamics]
+    
+    Parameters
+    ----------
+    model_par : [Dictionary]
+        [Stores model parameters]
+    
+    Returns
+    -------
+    output_matrix : [Numpy recarray]
+        [Contains steady state values of system variables and parameters]
+
+    """    
+    # run model
+    output, distFCoop, distGrSize = run_model(model_par)    
+    numt = output.size
+    
+    #input parameters to store
+    parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'offspr_size','offspr_frac',
+               'indv_K', 'K_tot']
+                                                            
+    stateVarPlus = stateVar + \
+        ['N%i' % x for x in range(model_par['indv_NType'])] + \
+        ['N%imut' % x for x in range(model_par['indv_NType'])]
+    
+    # init output matrix
+    dTypeList1 = [(x, 'f8') for x in parList]
+    dTypeList2 = [(x, 'f8') for x in stateVarPlus]
+    dTypeList3 = [(x+'_mav', 'f8') for x in stateVarPlus]
+    dTypeList =  [('run_idx', 'f8')] +  [('replicate_idx', 'f8')] + [('time', 'f8')] + \
+                dTypeList1 + dTypeList2 + dTypeList3
+                
+    dType = np.dtype(dTypeList)
+    output_matrix = np.zeros((numt), dType)    
+    
+    # store temporal dynamics
+    for var in stateVarPlus:
+        output_matrix[var] = output[var]
+        var_mav = var + '_mav'
+        output_matrix[var_mav] = output[var_mav]
+    
+    for par in parList:
+        output_matrix[par] = model_par[par]
+        
+    output_matrix['run_idx'] = model_par['run_idx']
+    output_matrix['time'] = output['time']
+    
+    if 'replicate_idx' in model_par:
+        output_matrix['replicate_idx'] = model_par['replicate_idx']
+    else:
+        output_matrix['replicate_idx'] = 1   
+        
+    return (output_matrix)
+
+
 
 #run model store only final state 
 def single_run_finalstate(model_par):
