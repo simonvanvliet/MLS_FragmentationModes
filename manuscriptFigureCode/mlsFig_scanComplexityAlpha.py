@@ -5,7 +5,7 @@ Created on 2020-07-03
 
 Code for figure X
 - Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
-Varies complexity of community by changing NType or Asymmetry 
+Varies complexity of community by changing NType or Asymmetry
 
 This specific file will be used to produce an SI figure showing the effect of asymmetry
 
@@ -40,7 +40,7 @@ fileName = 'scanComplexityAlpha'
 
 #setup 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
-offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
+offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #set model mode settings (slope and migration rate)
 mode_set = np.array([[2, 4, 6, 2, 4, 6, 2, 4, 6, 2, 4, 6],
@@ -49,7 +49,7 @@ modeNames = ['indv_NType', 'indv_asymmetry']
 mode_vec = np.arange(mode_set.shape[1])
 
 #SET fission rates to scan
-gr_CFis_vec = np.array([0.05]) 
+gr_CFis_vec = np.array([0.05])
 
 # this figure uses Kind = 50
 
@@ -101,10 +101,10 @@ model_par = {
         'replicate_idx':    1,
         'perimeter_loc':    0
     }
-  
-  
+
+
 """============================================================================
-CODE TO MAKE FIGURE 
+CODE TO MAKE FIGURE
 ============================================================================"""
 
 
@@ -112,11 +112,11 @@ CODE TO MAKE FIGURE
 def set_model_par(model_par, settings):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
-    
+
     #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
-                               
+
     return model_par_local
 
 # run model
@@ -124,8 +124,8 @@ def create_model_par_list(model_par):
     #create model paremeter list for all valid parameter range
     modelParList = []
     run_idx = 0
-    
-    for mode in mode_vec:            
+
+    for mode in mode_vec:
         for gr_CFis in gr_CFis_vec:
             run_idx += 1
             for repIdx in range(nReplicate):
@@ -133,7 +133,7 @@ def create_model_par_list(model_par):
                     for offspr_frac in offspr_frac_Vec:
                         inBounds = offspr_frac >= offspr_size and \
                                 offspr_frac <= (1 - offspr_size)
-                    
+
                         if inBounds:
                             settings = {'indv_NType'     : mode_set[0, mode],
                                         'indv_asymmetry' : mode_set[1, mode],
@@ -145,35 +145,32 @@ def create_model_par_list(model_par):
                                         }
                             curPar = set_model_par(model_par, settings)
                             modelParList.append(curPar)
-  
+
     return modelParList
 
 # run model code
 def run_model():
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-            
-    # run model, use parallel cores 
+
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
-    
-    #store output to disk 
+
+    #store output to disk
     fileNameTemp = fileName + '_temp' + '.npy'
     np.save(fileNameTemp, results)
-    
+
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
-    
+
     return None
 
 #run parscan
 if __name__ == "__main__":
-    run_model()    
-
-
-
+    run_model()

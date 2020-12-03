@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 
-fileName = 'mutationalMeltdown'
+fileName = 'mutRvsPopSizeWComplexity'
 
 #load data
 fileNameTemp = fileName + '_temp' + '.npy'

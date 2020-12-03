@@ -37,7 +37,7 @@ fileName = 'scanParSpace'
 
 #setup 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
-offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
+offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #SET fission rates to scan
 gr_CFis_vec = np.array([0.05]) # changed from 0.01 in 2020-07-13
@@ -90,10 +90,10 @@ model_par = {
         'replicate_idx':    1,
         'perimeter_loc':    0
     }
-  
-  
+
+
 """============================================================================
-CODE TO MAKE FIGURE 
+CODE TO MAKE FIGURE
 ============================================================================"""
 
 
@@ -101,11 +101,11 @@ CODE TO MAKE FIGURE
 def set_model_par(model_par, settings):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
-    
+
     #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
-                               
+
     return model_par_local
 
 # run model
@@ -113,7 +113,7 @@ def create_model_par_list(model_par):
     #create model paremeter list for all valid parameter range
     modelParList = []
     run_idx = 0
-    
+
     for gr_CFis in gr_CFis_vec:
         run_idx += 1
         for repIdx in range(nReplicate):
@@ -121,7 +121,7 @@ def create_model_par_list(model_par):
                 for offspr_frac in offspr_frac_Vec:
                     inBounds = offspr_frac >= offspr_size and \
                             offspr_frac <= (1 - offspr_size)
-                
+
                     if inBounds:
                         settings = {'gr_CFis'      : gr_CFis,
                                     'offspr_size'  : offspr_size,
@@ -131,35 +131,32 @@ def create_model_par_list(model_par):
                                     }
                         curPar = set_model_par(model_par, settings)
                         modelParList.append(curPar)
-  
+
     return modelParList
 
 # run model code
 def run_model():
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-            
-    # run model, use parallel cores 
+
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
-    
-    #store output to disk 
+
+    #store output to disk
     fileNameTemp = fileName + '_temp' + '.npy'
     np.save(fileNameTemp, results)
-    
+
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
-    
+
     return None
 
 #run parscan
 if __name__ == "__main__":
-    run_model()    
-
-
-
+    run_model()

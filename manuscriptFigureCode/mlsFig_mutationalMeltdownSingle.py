@@ -187,7 +187,7 @@ def run_model():
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
 
-    # run model, use parallel cores 
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
@@ -199,8 +199,8 @@ def run_model():
 
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
 
     return None

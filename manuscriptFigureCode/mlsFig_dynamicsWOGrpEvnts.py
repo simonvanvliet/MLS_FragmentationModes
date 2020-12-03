@@ -4,9 +4,9 @@
 Created on 2020-06-29
 
 Code for figure X
-Will show dynamics over time of some replicates when there are no group events. 
+Will show dynamics over time of some replicates when there are no group events.
 
-Runs model without group events and outputs temporal dynamics. 
+Runs model without group events and outputs temporal dynamics.
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -93,10 +93,10 @@ model_par = {
         'replicate_idx':    1,
         'perimeter_loc':    0
     }
-  
-  
+
+
 """============================================================================
-CODE TO MAKE FIGURE 
+CODE TO MAKE FIGURE
 ============================================================================"""
 
 
@@ -104,11 +104,11 @@ CODE TO MAKE FIGURE
 def set_model_par(model_par, settings):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
-    
+
     #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
-                               
+
     return model_par_local
 
 # run model
@@ -116,12 +116,12 @@ def create_model_par_list(model_par):
     #create model paremeter list for all valid parameter range
     modelParList = []
     run_idx = 0
-    
+
     for mutR in mutR_vec:
         for initLocIdx in range(numInit):
             run_idx += 1
             for repIdx in range(nReplicate):
-                #implement local settings    
+                #implement local settings
                 settings = {'indv_mutR'      : mutR,
                             'run_idx'        : run_idx,
                             'replicate_idx'  : repIdx+1,
@@ -130,41 +130,41 @@ def create_model_par_list(model_par):
 
                 curPar = set_model_par(model_par, settings)
                 modelParList.append(curPar)
-  
+
     return modelParList
 
 # run model code
 def run_model():
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-            
-    # run model, use parallel cores 
+
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(mls.run_model_dynamics_fig)(par) for par in modelParList)
-    
-    #store output to disk 
+
+    #store output to disk
     fileNameTemp = fileName + '_temp' + '.npy'
     np.save(fileNameTemp, results)
-    
+
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
-    
+
     return None
 
 #run parscan
 if __name__ == "__main__":
-    statData = run_model()    
+    statData = run_model()
 
 
 
 
-    
-    
+
+
 #output, _, _ = mls.run_model(model_par)
 #
 ## convert to pandas dataframe and export
@@ -172,6 +172,3 @@ if __name__ == "__main__":
 #dataName = fileName + '.pkl'
 #df.to_pickle(dataName)
 #
-
-
-

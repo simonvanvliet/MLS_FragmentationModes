@@ -6,7 +6,7 @@ Created on 2020-07-03
 Code for figure X
 - For the three archetypes, we show on x-axis the mutation rate, and on y-axis the population size
 
-Runs model to steady state for different mutation rates 
+Runs model to steady state for different mutation rates
 Outputs population size as well as other data.
 
 
@@ -97,10 +97,10 @@ model_par = {
         'replicate_idx':    1,
         'perimeter_loc':    0
     }
-  
-  
+
+
 """============================================================================
-CODE TO MAKE FIGURE 
+CODE TO MAKE FIGURE
 ============================================================================"""
 
 
@@ -108,11 +108,11 @@ CODE TO MAKE FIGURE
 def set_model_par(model_par, settings):
     #copy model par (needed because otherwise it is changed in place)
     model_par_local = model_par.copy()
-    
+
     #set model parameters
     for key, val in settings.items():
         model_par_local[key] = val
-                               
+
     return model_par_local
 
 # run model
@@ -120,13 +120,13 @@ def create_model_par_list(model_par):
     #create model paremeter list for all valid parameter range
     modelParList = []
     run_idx = 0
-    
+
     for mutR in mutR_vec:
         for gr_CFis in gr_CFis_vec:
             for initLocIdx in range(numInit):
                 run_idx += 1
                 for repIdx in range(nReplicate):
-                    #implement local settings    
+                    #implement local settings
                     settings = {'indv_mutR'     : mutR,
                                 'gr_CFis'       : gr_CFis,
                                 'run_idx'       : run_idx,
@@ -136,35 +136,32 @@ def create_model_par_list(model_par):
 
                     curPar = set_model_par(model_par, settings)
                     modelParList.append(curPar)
-  
+
     return modelParList
 
 # run model code
 def run_model():
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
-            
-    # run model, use parallel cores 
+
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
         delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
-    
-    #store output to disk 
+
+    #store output to disk
     fileNameTemp = fileName + '_temp' + '.npy'
     np.save(fileNameTemp, results)
-    
+
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
-    
+
     return None
 
 #run parscan
 if __name__ == "__main__":
-    run_model()    
-
-
-
+    run_model()

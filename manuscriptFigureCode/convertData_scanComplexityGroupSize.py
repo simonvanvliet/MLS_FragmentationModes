@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-07-03
-
-Code for figure X
-- Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
-Varies complexity of community by changing NType or Asymmetry
-
-- Here we will change NType and mu when community-wide carrying capacity is set by number of groups.
+Created 2020-12-03
+Converts temp.npy into proper pandas dataframe
+Used to fix bug in data export (now fixed) that occured in initial run
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -19,21 +15,13 @@ henriques@zoology.ubc.ca
 Run Model and plot results
 ============================================================================"""
 
-import sys
-sys.path.insert(0, '..')
-
 #load code
-from mainCode import MlsGroupDynamics_main as mls
-import pandas as pd
 import numpy as np
-from joblib import Parallel, delayed
+from restore_temp_data import convert_data
 
 """============================================================================
 SET MODEL SETTINGS
 ============================================================================"""
-
-#SET nr of cores to use
-nCore = 40
 
 #SET OUTPUT FILENAME
 fileName = 'scanComplexityGroupSize'
@@ -150,29 +138,6 @@ def create_model_par_list(model_par):
 
     return modelParList
 
-# run model code
-def run_model():
-    #get model parameters to scan
-    modelParList = create_model_par_list(model_par)
-
-    # run model, use parallel cores
-    nJobs = min(len(modelParList), nCore)
-    print('starting with %i jobs' % len(modelParList))
-    results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
-        delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
-
-    #store output to disk
-    fileNameTemp = fileName + '_temp' + '.npy'
-    np.save(fileNameTemp, results)
-
-    #convert to pandas dataframe and export
-    fileNameFull = fileName + '.pkl'
-    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
-    df = pd.concat(dfSet, axis=0, ignore_index=True)
-    df.to_pickle(fileNameFull)
-
-    return None
-
-#run parscan
+#convert data
 if __name__ == "__main__":
-    run_model()
+    convert_data(create_model_par_list(model_par), fileName)

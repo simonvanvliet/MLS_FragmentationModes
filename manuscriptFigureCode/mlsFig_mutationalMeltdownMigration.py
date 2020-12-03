@@ -42,14 +42,14 @@ fileName = 'mutationalMeltdownMigration'
 nReplicate = 3
 
 #set  mutation rates to try
-mu_Vec = np.logspace(0,-7,20) 
+mu_Vec = np.logspace(0,-7,20)
 
 #setup 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #set model mode settings (slope and migration rate)
-mode_set = np.array([[0,    0, 0],   # here we run for varying migration rates 
+mode_set = np.array([[0,    0, 0],   # here we run for varying migration rates
                      [1e-2, 1e-1, 1]])
 #mode_set = np.array([[4, 2, 0.1, 0], # here we run for varying slope
 #                     [0, 0,   0, 0]])
@@ -203,7 +203,7 @@ def run_model(nCore):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
 
-    # run model, use parallel cores 
+    # run model, use parallel cores
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
@@ -215,8 +215,8 @@ def run_model(nCore):
 
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    outputComb = np.hstack(results)
-    df = pd.DataFrame.from_records(outputComb)
+    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
+    df = pd.concat(dfSet, axis=0, ignore_index=True)
     df.to_pickle(fileNameFull)
 
     return None

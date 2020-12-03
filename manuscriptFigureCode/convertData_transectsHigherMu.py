@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-07-03
-
-Code for figure X
-- Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
-Varies complexity of community by changing NType or Asymmetry
-
-- Here we will change NType and mu when community-wide carrying capacity is set by number of groups.
+Created 2020-12-03
+Converts temp.npy into proper pandas dataframe
+Used to fix bug in data export (now fixed) that occured in initial run
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -19,39 +15,25 @@ henriques@zoology.ubc.ca
 Run Model and plot results
 ============================================================================"""
 
-import sys
-sys.path.insert(0, '..')
-
 #load code
-from mainCode import MlsGroupDynamics_main as mls
-import pandas as pd
 import numpy as np
-from joblib import Parallel, delayed
+from restore_temp_data import convert_data
 
 """============================================================================
 SET MODEL SETTINGS
 ============================================================================"""
 
-#SET nr of cores to use
-nCore = 40
-
 #SET OUTPUT FILENAME
-fileName = 'scanComplexityGroupSize'
+fileName = 'transectsHiMu'
 
-#setup 2D parameter grid
-offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
-offspr_frac_Vec = np.arange(0.01, 1, 0.07)
-
-#set model mode settings (slope and migration rate)
-mode_set = np.array([[1, 2, 3, 4],
-                     [1, 1, 1, 1]])
-modeNames = ['indv_NType', 'indv_asymmetry']
-mode_vec = np.arange(mode_set.shape[1])
+#SET mutation rates to scan
+mutR_vec = np.array([0.025, 0.05,0.075])
 
 #SET fission rates to scan
-gr_CFis_vec = np.array([0.05])
+indv_NType_vec = np.array([3,4])
 
-mu_vec = np.array([0.001, 0.01, 0.025])
+#SET X Coordinates along top diagonal of parameter space, y is set to 1-x
+xLoc_vec = np.linspace(0.01,0.5,50)
 
 #SET nr of replicates
 nReplicate = 5
@@ -84,15 +66,15 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          0.01,
+        'gr_CFis':          0.05,
         'gr_SFis':          0,     # measured in units of 1 / indv_K
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
-        'K_grp':            1000,   # carrying capacity of groups
-        'delta_tot':        0,      # exponent of density dependence on total #individual
-        'K_tot':            0,      # carrying capacity of total individuals
-        'delta_size':       1,      # exponent of size dependence
+        'K_grp':            0,      # carrying capacity of groups
+        'delta_tot':        1,      # exponent of density dependence on total #individual
+        'K_tot':            1E5,    # carrying capacity of total individuals
+        'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.01,  # offspr_size <= 0.5 and
         'offspr_frac':      0.01,    # offspr_size < offspr_frac < 1-offspr_size'
@@ -125,54 +107,24 @@ def create_model_par_list(model_par):
     modelParList = []
     run_idx = 0
 
-    for mode in mode_vec:
-        for gr_CFis in gr_CFis_vec:
+    for mutR in mutR_vec:
+        for indv_NType in indv_NType_vec:
             run_idx += 1
-            for repIdx in range(nReplicate):
-                for mu in mu_vec:
-                    for offspr_size in offspr_size_Vec:
-                        for offspr_frac in offspr_frac_Vec:
-                            inBounds = offspr_frac >= offspr_size and \
-                                    offspr_frac <= (1 - offspr_size)
+            for xloc in xLoc_vec:
+                for repIdx in range(nReplicate):
+                    #implement local settings
+                    settings = {'indv_mutR'     : mutR,
+                                'indv_NType'    : indv_NType,
+                                'run_idx'       : run_idx,
+                                'replicate_idx' : repIdx+1,
+                                'offspr_size'   : xloc,
+                                'offspr_frac'   : 1-xloc}
 
-                            if inBounds:
-                                settings = {'indv_NType'     : mode_set[0, mode],
-                                        'indv_asymmetry' : mode_set[1, mode],
-                                        'gr_CFis'        : gr_CFis,
-                                        'offspr_size'    : offspr_size,
-                                        'offspr_frac'    : offspr_frac,
-                                        'run_idx'        : run_idx,
-                                        'replicate_idx'  : repIdx+1,
-                                        'indv_mutR'      : mu
-                                        }
-                                curPar = set_model_par(model_par, settings)
-                                modelParList.append(curPar)
+                    curPar = set_model_par(model_par, settings)
+                    modelParList.append(curPar)
 
     return modelParList
 
-# run model code
-def run_model():
-    #get model parameters to scan
-    modelParList = create_model_par_list(model_par)
-
-    # run model, use parallel cores
-    nJobs = min(len(modelParList), nCore)
-    print('starting with %i jobs' % len(modelParList))
-    results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
-        delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
-
-    #store output to disk
-    fileNameTemp = fileName + '_temp' + '.npy'
-    np.save(fileNameTemp, results)
-
-    #convert to pandas dataframe and export
-    fileNameFull = fileName + '.pkl'
-    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
-    df = pd.concat(dfSet, axis=0, ignore_index=True)
-    df.to_pickle(fileNameFull)
-
-    return None
-
-#run parscan
+#convert data
 if __name__ == "__main__":
-    run_model()
+    convert_data(create_model_par_list(model_par), fileName)

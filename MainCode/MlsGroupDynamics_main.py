@@ -919,6 +919,40 @@ def run_model_steadyState_fig(model_par):
     return (output_matrix)
 
 
+#return data type of output
+def columnNames_steadyState_fig(model_par):
+    """[return column names  of output of run_model_steadyState_fig]
+    
+    Parameters
+    ----------
+    model_par : [Dictionary]
+        [Stores model parameters]
+    
+    Returns
+    -------
+    columnNames : [lis]
+        [column names of output returned by run_model_steadyState_fig]
+
+    """    
+    # parameters to store
+    parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'offspr_size','offspr_frac',
+               'indv_K', 'K_tot',
+               'delta_indv', 'delta_tot', 'delta_size', 'delta_grp', 'K_grp']
+                                    
+    stateVarPlus = stateVar + \
+        ['N%i' % x for x in range(model_par['indv_NType'])] + \
+        ['N%imut' % x for x in range(model_par['indv_NType'])]
+    
+    # init output matrix
+    stateVarPlus_mav = [x+'_mav' for x in stateVarPlus]
+    columnNames =  ['run_idx','replicate_idx'] + \
+                parList + stateVarPlus + stateVarPlus_mav
+                
+        
+    return columnNames
+
 #run model store only final state 
 def single_run_finalstate(model_par):
     """[Runs MLS model and stores final state]
