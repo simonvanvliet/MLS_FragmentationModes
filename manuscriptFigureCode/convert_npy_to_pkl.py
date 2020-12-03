@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#opens numpy file with name fileName_temp.npy and converts to pandas dataframe
+#dataframe stored with name fileName.pkl
 
-
-#load code
 import pandas as pd
 import numpy as np
 
-fileName = 'mutRvsPopSizeWComplexity'
+fileName = 'mutationalMeltdown'
 
 #load data
 fileNameTemp = fileName + '_temp' + '.npy'

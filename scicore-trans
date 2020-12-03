@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
-
-#load code
 import pandas as pd
 import numpy as np
 
-fileName = 'mutRvsPopSizeWComplexity'
+results = np.load('Data_FigSX_Pichugin_temp.npy')
 
-#load data
-fileNameTemp = fileName + '_temp' + '.npy'
-results = np.load(fileNameTemp, allow_pickle=True)
 
 #convert to pandas dataframe and export
 fileNameFull = fileName + '.pkl'
-outputComb = np.hstack(results)
+outputComb = np.reshape(results, (-1))
 df = pd.DataFrame.from_records(outputComb)
 df.to_pickle(fileNameFull)

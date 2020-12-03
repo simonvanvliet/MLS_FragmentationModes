@@ -4,6 +4,8 @@
 Created on 2020-06-29
 
 Code for figure X
+Will show dynamics over time of some replicates when there are no group events. 
+
 Runs model without group events and outputs temporal dynamics. 
 
 @author: Simon van Vliet & Gil Henriques
@@ -36,19 +38,20 @@ nCore = 40
 fileName = 'dynamicsWOGrpEvents'
 
 #SET mutation rates to scan
-mutR_vec = np.array([1E-2, 1E-3])
+#mutR_vec = np.array([1E-2, 1E-3])
+mutR_vec = np.array([1E-3])
 
 #SET XY Coordinates in parameter space
-xyLoc_vec = np.array([[0.05,0.05],[0.05,0.5],[0.05,0.95],[0.25,0.5],[0.45,0.5]])
+xyLoc_vec = np.array([[0.01,0.01],[0.01,0.99],[0.5,0.5]])
 numInit = xyLoc_vec.shape[0]
 
 #SET nr of replicates
-nReplicate = 10
+nReplicate = 4
 
 #SET rest of model parameters
 model_par = {
           #time and run settings
-        "maxT":             2500,  # total run time
+        "maxT":             7500,  # total run time
         "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             2500,    # min run time
         "sampleInt":        1,      # sampling interval

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-07-02
+Created on 2020-07-03
 
 Code for figure X
-Will show dynamics over time of some replicates when there are group events. 
+- Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
+Varies complexity of community by changing NType or Asymmetry 
 
-Runs model with group events and outputs temporal dynamics. 
+- Here we will change NType and mu when community-wide carrying capacity is set by number of groups.
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -35,29 +36,36 @@ SET MODEL SETTINGS
 nCore = 40
 
 #SET OUTPUT FILENAME
-fileName = 'dynamicsWGrpEvents'
+fileName = 'scanComplexityKgrp'
 
-#SET mutation rates to scan
-# mutR_vec = np.array([1E-2, 1E-3])
-mutR_vec = np.array([1E-3])
+#setup 2D parameter grid
+offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
+offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
+
+#set model mode settings (slope and migration rate)
+mode_set = np.array([[1, 2, 3, 4],
+                     [1, 1, 1, 1]])
+modeNames = ['indv_NType', 'indv_asymmetry']
+mode_vec = np.arange(mode_set.shape[1])
 
 #SET fission rates to scan
-# gr_CFis_vec = np.array([0.01, 0.05, 0.1])
-gr_CFis_vec = np.array([0.01])
+gr_CFis_vec = np.array([0.05])
 
-#SET XY Coordinates in parameter space
-xyLoc_vec = np.array([[0.01,0.01],[0.01,0.99],[0.5,0.5]])
-numInit = xyLoc_vec.shape[0]
+# Running with carrying capacity on the number of groups, like this:
+# 'delta_grp':        1,      # exponent of density dependence on group #
+# 'K_grp':            1000,   # carrying capacity of groups
+
+mu_vec = np.array([0.001, 0.01, 0.025])
 
 #SET nr of replicates
-nReplicate = 12
+nReplicate = 5
 
 #SET rest of model parameters
 model_par = {
           #time and run settings
-        "maxT":             7500,  # total run time
-        "maxPopSize":       40000,  #stop simulation if population exceeds this number
-        "minT":             7500,    # min run time
+        "maxT":             5000,  # total run time
+        "maxPopSize":       1000000,  #stop simulation if population exceeds this number
+        "minT":             2500,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
         "rms_window":       200,    # calc rms change over this time window
@@ -80,14 +88,14 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          0,
+        'gr_CFis':          0.01,
         'gr_SFis':          0,     # measured in units of 1 / indv_K
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
-        'delta_grp':        0,      # exponent of density dependence on group #
-        'K_grp':            0,      # carrying capacity of groups
-        'delta_tot':        1,      # exponent of density dependence on total #individual
-        'K_tot':            1E5,    # carrying capacity of total individuals
+        'delta_grp':        1,      # exponent of density dependence on group #
+        'K_grp':            1000,   # carrying capacity of groups
+        'delta_tot':        0,      # exponent of density dependence on total #individual
+        'K_tot':            0,      # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.01,  # offspr_size <= 0.5 and
@@ -121,21 +129,28 @@ def create_model_par_list(model_par):
     modelParList = []
     run_idx = 0
     
-    for mutR in mutR_vec:
+    for mode in mode_vec:            
         for gr_CFis in gr_CFis_vec:
-            for initLocIdx in range(numInit):
-                run_idx += 1
-                for repIdx in range(nReplicate):
-                    #implement local settings    
-                    settings = {'indv_mutR'     : mutR,
-                                'gr_CFis'       : gr_CFis,
-                                'run_idx'       : run_idx,
-                                'replicate_idx' : repIdx+1,
-                                'offspr_size'   : xyLoc_vec[initLocIdx, 0],
-                                'offspr_frac'   : xyLoc_vec[initLocIdx, 1]}
-
-                    curPar = set_model_par(model_par, settings)
-                    modelParList.append(curPar)
+            run_idx += 1
+            for repIdx in range(nReplicate):
+                for mu in mu_vec:
+                    for offspr_size in offspr_size_Vec:
+                        for offspr_frac in offspr_frac_Vec:
+                            inBounds = offspr_frac >= offspr_size and \
+                                    offspr_frac <= (1 - offspr_size)
+                    
+                            if inBounds:
+                                settings = {'indv_NType'     : mode_set[0, mode],
+                                        'indv_asymmetry' : mode_set[1, mode],
+                                        'gr_CFis'        : gr_CFis,
+                                        'offspr_size'    : offspr_size,
+                                        'offspr_frac'    : offspr_frac,
+                                        'run_idx'        : run_idx,
+                                        'replicate_idx'  : repIdx+1,
+                                        'indv_mutR'      : mu
+                                        }
+                                curPar = set_model_par(model_par, settings)
+                                modelParList.append(curPar)
   
     return modelParList
 
@@ -148,7 +163,7 @@ def run_model():
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
-        delayed(mls.run_model_dynamics_fig)(par) for par in modelParList)
+        delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
     
     #store output to disk 
     fileNameTemp = fileName + '_temp' + '.npy'
@@ -164,7 +179,7 @@ def run_model():
 
 #run parscan
 if __name__ == "__main__":
-    statData = run_model()    
+    run_model()    
 
 
 

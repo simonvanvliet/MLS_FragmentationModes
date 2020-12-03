@@ -28,6 +28,7 @@ import time
 K_tot_def = 20000
 model_par = {
         #time and run settings
+        "maxRunTime":       900,     #max cpu time in seconds
         "maxT":             100,  # total run time
         "maxPopSize":       40000,  #stop simulation if population exceeds this number
         "minT":             200,    # min run time

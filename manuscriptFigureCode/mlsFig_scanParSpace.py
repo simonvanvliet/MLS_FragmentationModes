@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-07-02
+Created on 2020-07-03
 
 Code for figure X
-Will show dynamics over time of some replicates when there are group events. 
-
-Runs model with group events and outputs temporal dynamics. 
+- Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -35,29 +33,24 @@ SET MODEL SETTINGS
 nCore = 40
 
 #SET OUTPUT FILENAME
-fileName = 'dynamicsWGrpEvents'
+fileName = 'scanParSpace'
 
-#SET mutation rates to scan
-# mutR_vec = np.array([1E-2, 1E-3])
-mutR_vec = np.array([1E-3])
+#setup 2D parameter grid
+offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
+offspr_frac_Vec = np.arange(0.01, 1, 0.07) 
 
 #SET fission rates to scan
-# gr_CFis_vec = np.array([0.01, 0.05, 0.1])
-gr_CFis_vec = np.array([0.01])
-
-#SET XY Coordinates in parameter space
-xyLoc_vec = np.array([[0.01,0.01],[0.01,0.99],[0.5,0.5]])
-numInit = xyLoc_vec.shape[0]
+gr_CFis_vec = np.array([0.05]) # changed from 0.01 in 2020-07-13
 
 #SET nr of replicates
-nReplicate = 12
+nReplicate = 5
 
 #SET rest of model parameters
 model_par = {
-          #time and run settings
-        "maxT":             7500,  # total run time
-        "maxPopSize":       40000,  #stop simulation if population exceeds this number
-        "minT":             7500,    # min run time
+        #time and run settings
+        "maxT":             5000,  # total run time
+        "maxPopSize":       1000000,  #stop simulation if population exceeds this number
+        "minT":             2500,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
         "rms_window":       200,    # calc rms change over this time window
@@ -80,7 +73,7 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          0,
+        'gr_CFis':          0.01,
         'gr_SFis':          0,     # measured in units of 1 / indv_K
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
@@ -121,21 +114,23 @@ def create_model_par_list(model_par):
     modelParList = []
     run_idx = 0
     
-    for mutR in mutR_vec:
-        for gr_CFis in gr_CFis_vec:
-            for initLocIdx in range(numInit):
-                run_idx += 1
-                for repIdx in range(nReplicate):
-                    #implement local settings    
-                    settings = {'indv_mutR'     : mutR,
-                                'gr_CFis'       : gr_CFis,
-                                'run_idx'       : run_idx,
-                                'replicate_idx' : repIdx+1,
-                                'offspr_size'   : xyLoc_vec[initLocIdx, 0],
-                                'offspr_frac'   : xyLoc_vec[initLocIdx, 1]}
-
-                    curPar = set_model_par(model_par, settings)
-                    modelParList.append(curPar)
+    for gr_CFis in gr_CFis_vec:
+        run_idx += 1
+        for repIdx in range(nReplicate):
+            for offspr_size in offspr_size_Vec:
+                for offspr_frac in offspr_frac_Vec:
+                    inBounds = offspr_frac >= offspr_size and \
+                            offspr_frac <= (1 - offspr_size)
+                
+                    if inBounds:
+                        settings = {'gr_CFis'      : gr_CFis,
+                                    'offspr_size'  : offspr_size,
+                                    'offspr_frac'  : offspr_frac,
+                                    'run_idx'      : run_idx,
+                                    'replicate_idx': repIdx+1,
+                                    }
+                        curPar = set_model_par(model_par, settings)
+                        modelParList.append(curPar)
   
     return modelParList
 
@@ -148,7 +143,7 @@ def run_model():
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
-        delayed(mls.run_model_dynamics_fig)(par) for par in modelParList)
+        delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
     
     #store output to disk 
     fileNameTemp = fileName + '_temp' + '.npy'
@@ -164,7 +159,7 @@ def run_model():
 
 #run parscan
 if __name__ == "__main__":
-    statData = run_model()    
+    run_model()    
 
 
 

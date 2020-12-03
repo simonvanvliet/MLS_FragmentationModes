@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2020-07-02
+Created on 2020-07-03
 
 Code for figure X
-Will show dynamics over time of some replicates when there are group events. 
+- For the three archetypes, we show on x-axis the mutation rate, and on y-axis the population size
 
-Runs model with group events and outputs temporal dynamics. 
+Runs model to steady state for different mutation rates 
+Outputs population size as well as other data.
+
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -35,29 +37,27 @@ SET MODEL SETTINGS
 nCore = 40
 
 #SET OUTPUT FILENAME
-fileName = 'dynamicsWGrpEvents'
+fileName = 'mutRvsPopSize'
 
 #SET mutation rates to scan
-# mutR_vec = np.array([1E-2, 1E-3])
-mutR_vec = np.array([1E-3])
+mutR_vec = 10*np.logspace(-3,-1,20) #mutR_vec = 5*np.logspace(-3,-1,15)
 
 #SET fission rates to scan
-# gr_CFis_vec = np.array([0.01, 0.05, 0.1])
-gr_CFis_vec = np.array([0.01])
+gr_CFis_vec = np.array([0.05]) #gr_CFis_vec = np.array([0.01, 0.05, 0.1])
 
 #SET XY Coordinates in parameter space
 xyLoc_vec = np.array([[0.01,0.01],[0.01,0.99],[0.5,0.5]])
 numInit = xyLoc_vec.shape[0]
 
 #SET nr of replicates
-nReplicate = 12
+nReplicate = 5
 
 #SET rest of model parameters
 model_par = {
           #time and run settings
-        "maxT":             7500,  # total run time
-        "maxPopSize":       40000,  #stop simulation if population exceeds this number
-        "minT":             7500,    # min run time
+        "maxT":             5000,  # total run time
+        "maxPopSize":       1000000,  #stop simulation if population exceeds this number
+        "minT":             2500,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
         "rms_window":       200,    # calc rms change over this time window
@@ -80,7 +80,7 @@ model_par = {
         "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
-        'gr_CFis':          0,
+        'gr_CFis':          0.01,
         'gr_SFis':          0,     # measured in units of 1 / indv_K
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
@@ -148,7 +148,7 @@ def run_model():
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
-        delayed(mls.run_model_dynamics_fig)(par) for par in modelParList)
+        delayed(mls.run_model_steadyState_fig)(par) for par in modelParList)
     
     #store output to disk 
     fileNameTemp = fileName + '_temp' + '.npy'
@@ -164,7 +164,7 @@ def run_model():
 
 #run parscan
 if __name__ == "__main__":
-    statData = run_model()    
+    run_model()    
 
 
 
