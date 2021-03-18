@@ -1,12 +1,21 @@
 # Readme
 # Code for: "Multilevel selection favors fragmentation modes that maintain cooperative interactions in multispecies communities"
 
-## Author: Gil Henriques, Simon van Vliet, & Michael Doebeli 
+## Author: Gil Henriques, Simon van Vliet, & Michael Doebeli
 henriques@zoology.ubc.ca
 vanvliet@zoology.ubc.ca
 doebeli@zoology.ubc.ca
 
-## The following Code is supplied:
+
+This repository contains the python code required to run the model (in Folder python_model_code) and R code required to make the figures (in folder R_figure_code).
+
+## The following R code is supplied:
+- RDS data files that contain figure data (imported and converted from python code output)
+- R scripts to recreate the figures
+Files and scripts for each figure are collected in individual folders. 
+
+
+## The following python Code is supplied:
 The code has been tested using the Conda environment specified in mls_env.yml
 
 ### Code required to reproduce manuscript figure (in folder "manuscriptFigureCode")
