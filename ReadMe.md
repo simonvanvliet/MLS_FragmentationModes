@@ -12,8 +12,18 @@ This repository contains the python code required to run the model (in Folder py
 ## The following R code is supplied:
 - RDS data files that contain figure data (imported and converted from python code output)
 - R scripts to recreate the figures
-Files and scripts for each figure are collected in individual folders. 
+Files and scripts for each figure are collected in individual folders.
 
+The output of the python model code was imported in R using the reticulate library, using the following code:
+
+```
+library(reticulate)
+use_condaenv("path_to_conda_env")
+pd <- import("pandas")
+filePath <- here::here("path_to_datafile", "data_file_name.pkl")
+df <- pd$read_pickle(filePath) #dataframe
+saveRDS(df, file = here::here("path_to_store", "file_name_RDS"))
+```
 
 ## The following python Code is supplied:
 The code has been tested using the Conda environment specified in mls_env.yml
