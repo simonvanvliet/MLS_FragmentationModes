@@ -1,33 +1,46 @@
 # Readme
+# Code for: "Multilevel selection favors fragmentation modes that maintain cooperative interactions in multispecies communities"
 
-## Author: Simon van Vliet & Gil Henriques
-vanvliet@zoology.ubc.ca
+## Author: Gil Henriques, Simon van Vliet, & Michael Doebeli 
 henriques@zoology.ubc.ca
+vanvliet@zoology.ubc.ca
+doebeli@zoology.ubc.ca
 
 ## The following Code is supplied:
+The code has been tested using the Conda environment specified in mls_env.yml
 
-### Code implementing main model
-#### MlsGroupDynamics_main.py
+### Code required to reproduce manuscript figure (in folder "manuscriptFigureCode")
+Each script produces the data for one or more figure panels
+
+Data is exported as Pandas data frame and can be plotted with the R scripts that are provided along cite the manuscript.
+
+### Code implementing main model (in folder "mainCode")
+#### mainCode/MlsGroupDynamics_main.py
 Implementation of main Multilevel selection model, without trait evolution
 
 No direct user access required -> run model with code described below
 
-#### MlsGroupDynamics_evolve.py
+#### mainCode/MlsGroupDynamics_evolve.py
 Implementation of main Multilevel selection model, with trait evolution at individual level
 
 No direct user access required -> run model with code described below
 
-#### MlsGroupDynamics_evolve_groups.py
+#### mainCode/MlsGroupDynamics_evolve_groups.py
 Implementation of main Multilevel selection model, with trait evolution at group level
 
 No direct user access required -> run model with code described below
 
-#### MlsGroupDynamics_utilities.py
+#### mainCode/MlsGroupDynamics_utilities.py
 Collection of utility functions required for model solving
 
 No direct user access required -> run model with code described below
 
-### Code to run model single time
+#### mainCode/MlsGroupDynamics_plotUtilities.py
+Collection of utility functions required for model plotting
+
+No direct user access required -> run model with code described below
+
+### Code to run model single time (in folder "exploreModelCode")
 #### singleRun.py
 Runs main model single time and plots results
 
@@ -36,7 +49,7 @@ Code provides explanation of model parameters
 #### singleRunEvolution.py
 Runs main model with evolution of traits at individual level a single time and plots results
 
-### Code to explore parameter space
+### Code to explore parameter space (in folder "exploreModelCode")
 #### MlsGroupDynamics_scanStates.py
 Scans 2D parameter space (fractional size of offspring, and fraction of parent assigned to offspring)
 
@@ -90,7 +103,7 @@ Plot result with: plotParScan.py
 
 Code supports parallel cores
 
-### Batch utility scripts
+### Batch utility scripts (in folder "exploreModelCode")
 #### MlsBatch.py		
 Depreciated: use MlsGroupDynamics_scanStates instead
 
@@ -120,7 +133,7 @@ Plot results with plotEvolutionBatch.py and plotEvolutionBatchMovie.py
 
 Code supports parallel cores
 
-### plotting utility scripts
+### plotting utility scripts (in folder "exploreModelCode")
 #### MlsGroupDynamics_plotUtilities.py
 Contains main plotting function used by various pieces of code
 

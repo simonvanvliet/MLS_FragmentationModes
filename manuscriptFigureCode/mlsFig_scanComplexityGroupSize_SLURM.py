@@ -3,7 +3,7 @@
 """
 Created on 2021-01-05
 
-Code for figure X
+Code for figure S2
 - Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
 Varies complexity of community by changing NType or Asymmetry
 

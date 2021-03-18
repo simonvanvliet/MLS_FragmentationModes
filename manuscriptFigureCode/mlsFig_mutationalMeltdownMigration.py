@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 21 2019
-
+Code for Figure 5 and S4
 - For each strategy, maximum mutation rate, varies migration rate
 
 @author: Simon van Vliet & Gil Henriques

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2020-11-16
+Code for Figure 6
 Code runs multiple evolution run, each run is stored on disk independently
 Use mlsFig_evolutionFitnessLandscape with same settings to create reference parameter space scans
 
@@ -127,20 +128,6 @@ def run_single(model_par, mainName):
         print("Failure with run")
  
                 
-#    try: 
-#        outputMat, traitDistr = mls.run_model(model_par)  
-#        np.savez(fileName, output=outputMat, traitDistr=traitDistr, model_par=[model_par])
-#        try:
-#            # convert to pandas dataframe and export
-#            df = pd.DataFrame.from_records(outputMat)
-#            df.to_pickle(fileNamePkl)
-#        except: 
-#            print("Failure with panda export")
-#    except: 
-#        print("Failure with run")
-#        
-#    return None
-        
 def run_batch():
     """[Runs batch of evolution experiments]
     Returns:

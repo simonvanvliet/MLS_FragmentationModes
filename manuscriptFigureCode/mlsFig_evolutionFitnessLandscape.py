@@ -3,6 +3,7 @@
 """
 Created on 2020-11-20
 
+Code for Figure 6
 Code runs multiple 2D parameter space scans, each run is stored on disk independently
 Use as background to plot results of mlsFig_evolutionRuns 
 

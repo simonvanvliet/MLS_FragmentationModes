@@ -77,23 +77,11 @@ model_par = {
 
 
 #run model
-
-# run code
 start = time.time()
 now = datetime.now();
 output, traitDistr = mlse.run_model(model_par)
 pltRun.plot_single_run(model_par, output, traitDistr)
 end = time.time()
-
-
-#
-#fileName = 'evolution_' + now.strftime("%y%m%d_%H%M") + '.npz'
-#movieName = 'evolution_' + now.strftime("%y%m%d_%H%M") + '.mp4'
-#
-#np.savez(fileName, output=output, traitDistr=traitDistr,
-#             model_par=[model_par], date=now)
-#
-#evomo = evomo.create_movie(traitDistr, movieName, fps=25, size=800)
 
 # print timing
 print("Elapsed time run 1 = %s" % (end - start))

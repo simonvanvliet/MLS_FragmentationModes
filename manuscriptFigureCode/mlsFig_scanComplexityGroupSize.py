@@ -7,7 +7,7 @@ Code for figure X
 - Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
 Varies complexity of community by changing NType or Asymmetry
 
-- Here we will change NType and mu when community-wide carrying capacity is set by number of groups.
+- Here we will change NType and mu when group extinction rate 
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -58,10 +58,10 @@ nReplicate = 5
 
 #SET rest of model parameters
 model_par = {
-          #time and run settings
+         #time and run settings
         "maxT":             5000,  # total run time
-        "maxPopSize":       1000000,  #stop simulation if population exceeds this number
-        "minT":             2500,    # min run time
+        "maxPopSize":       2E5,  #stop simulation if population exceeds this number
+        "minT":             200,    # min run time
         "sampleInt":        1,      # sampling interval
         "mav_window":       200,    # average over this time window
         "rms_window":       200,    # calc rms change over this time window
@@ -89,9 +89,9 @@ model_par = {
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
-        'K_grp':            1000,   # carrying capacity of groups
+        'K_grp':            0,   # carrying capacity of groups
         'delta_tot':        1,      # exponent of density dependence on total #individual
-        'K_tot':            1E5,      # carrying capacity of total individuals
+        'K_tot':            1E4,      # carrying capacity of total individuals
         'delta_size':       1,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.01,  # offspr_size <= 0.5 and

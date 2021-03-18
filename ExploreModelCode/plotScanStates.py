@@ -137,10 +137,6 @@ def make_fig(fileName, pathSave=pathSave, pathLoad=pathLoad):
         nC = par2.size * par3.size
         nCsub = par3.size
         nR = par1.size
-##        
-#        nR = 2
-#        nC = int(np.ceil(par1.size/nR))
-#        nCsub = 1
 
         #loop over all variable parameters
         for rr in range(par1.size):

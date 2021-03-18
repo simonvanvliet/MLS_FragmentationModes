@@ -3,7 +3,7 @@
 """
 Created on 2020-06-29
 
-Code for figure X
+Code for Figure 3ABC
 Will show dynamics over time of some replicates when there are no group events.
 
 Runs model without group events and outputs temporal dynamics.
@@ -159,16 +159,3 @@ def run_model():
 #run parscan
 if __name__ == "__main__":
     statData = run_model()
-
-
-
-
-
-
-#output, _, _ = mls.run_model(model_par)
-#
-## convert to pandas dataframe and export
-#df = pd.DataFrame.from_records(output)
-#dataName = fileName + '.pkl'
-#df.to_pickle(dataName)
-#

@@ -3,7 +3,7 @@
 """
 Created on 2020-07-03
 
-Code for figure X
+Code for Figure 3DF
 - For the three archetypes, we show on x-axis the mutation rate, and on y-axis the population size
 
 Runs model to steady state for different mutation rates

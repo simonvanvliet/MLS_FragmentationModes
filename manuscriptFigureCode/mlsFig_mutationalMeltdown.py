@@ -3,9 +3,8 @@
 """
 Created on Tue Oct 21 2019
 
-Last Update July 3 2019
-Code for figure X
-- For each strategy, maximum mutation rate, varies fission slope and migration rate
+Code for Figure 3E & Figure 5 & Figure S3
+- For each strategy, maximum mutation rate, varies fission slope, no migration
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology

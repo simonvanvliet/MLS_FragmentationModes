@@ -3,7 +3,7 @@
 """
 Created on 2020-07-03
 
-Code for figure X
+Code for figure 4C
 - For the one optimal strategy, we show on x-axis the mutation rate,
 and on y-axis the population size, for different levels of complexity
 

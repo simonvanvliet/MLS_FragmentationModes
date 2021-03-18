@@ -4,10 +4,9 @@
 Created on June 23 2020
 Edited July 2 2020
 
-Creates data for SI Figure S[X] (comparison with Pichugin et al)
+Creates data for SI Figure S5 (comparison with Pichugin et al)
 Scans model parameters within full 2D parameter space
 Runs version of model with Pichugin et al 2017 like rate function  
-
 
 
 Output stored on disk as a Pandas dataframe

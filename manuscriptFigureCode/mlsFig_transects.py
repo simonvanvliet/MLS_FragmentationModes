@@ -3,8 +3,9 @@
 """
 Created on 2020-07-03
 
-Code for figure X
+Code for figure 4B
 - Population size vs strategy along top diagonal of parmater space
+- For multiple number of species
 
 Runs model to steady state for different mutation rates
 Outputs population size as well as other data.
@@ -42,7 +43,7 @@ fileName = 'transects'
 #SET mutation rates to scan
 mutR_vec = np.array([1E-3, 1E-2,1E-1])
 
-#SET fission rates to scan
+#SET numper of species to scan
 indv_NType_vec = np.array([1,2,3,4])
 
 #SET X Coordinates along top diagonal of parameter space, y is set to 1-x

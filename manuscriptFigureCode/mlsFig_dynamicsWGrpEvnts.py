@@ -3,7 +3,7 @@
 """
 Created on 2020-07-02
 
-Code for figure X
+Code for Figure 3BC
 Will show dynamics over time of some replicates when there are group events.
 
 Runs model with group events and outputs temporal dynamics.

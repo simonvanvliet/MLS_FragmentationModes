@@ -4,7 +4,7 @@
 Created on Tue Oct 21 2019
 
 Last Update July 3 2019
-Code for figure X
+Code for figure 3E
 - For each strategy, maximum mutation rate, for basal system SFis=0 and migr=0
 
 @author: Simon van Vliet & Gil Henriques

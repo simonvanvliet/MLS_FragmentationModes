@@ -5,6 +5,7 @@ Created on 2020-06-26
 Updated 2020-07-02
 
 Run single model and export to Pandas dataframe
+Not use for any figure, allows to explore model
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -71,10 +72,6 @@ model_par = {
         'perimeter_loc':    0
     }
   
-
-
-
-
 # run model
 output, _, _ = mls.run_model(model_par)
 

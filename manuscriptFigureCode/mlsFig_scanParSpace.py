@@ -3,7 +3,7 @@
 """
 Created on 2020-07-03
 
-Code for figure 2
+Code for Figure 2
 - Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
 
 @author: Simon van Vliet & Gil Henriques
