@@ -43,8 +43,8 @@ offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
 offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
 #set model mode settings (slope and migration rate)
-mode_set = np.array([[1, 2, 3, 4],
-                     [1, 1, 1, 1]])
+mode_set = np.array([[1, 2, 3],
+                     [1, 1, 1]])
 modeNames = ['indv_NType', 'indv_asymmetry']
 mode_vec = np.arange(mode_set.shape[1])
 
@@ -90,8 +90,8 @@ model_par = {
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            1000,   # carrying capacity of groups
-        'delta_tot':        0,      # exponent of density dependence on total #individual
-        'K_tot':            0,      # carrying capacity of total individuals
+        'delta_tot':        1,      # exponent of density dependence on total #individual
+        'K_tot':            1E5,      # carrying capacity of total individuals
         'delta_size':       1,      # exponent of size dependence
         # settings for fissioning
         'offspr_size':      0.01,  # offspr_size <= 0.5 and

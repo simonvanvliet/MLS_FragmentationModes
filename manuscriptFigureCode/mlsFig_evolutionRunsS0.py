@@ -25,7 +25,7 @@ fileName = 'evolutionRunS0'
 #SET number of cores to use
 numCore = 20
 #SET group fission rates to scan
-gr_Sfission_Vec = np.array([0]) # for S = 0, use K = 2E5; for S > 0 (0.1 or 4), use K = 3E4
+gr_Sfission_Vec = np.array([0]) 
 #SET parName and par0Vec to scan over any parameter of choice
 par0Name = 'indv_NType'
 par0Vec = np.array([1, 2])
@@ -70,7 +70,7 @@ model_par = {
     'delta_grp':        0,      # exponent of denisty dependence on group #
     'K_grp':            0,      # carrying capacity of groups
     'delta_tot':        1,      # exponent of denisty dependence on total #indvidual
-    'K_tot':            2E5,  # carrying capacity of total individuals.
+    'K_tot':            3E4,  # carrying capacity of total individuals.
     'delta_size':       0,      # exponent of size dependence
     # initial settings for fissioning
     'offspr_sizeInit':  0.25,   # offspr_size <= 0.5 and

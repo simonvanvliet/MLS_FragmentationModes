@@ -78,7 +78,7 @@ def select_random_event(propensity_vec, randNum):
     id_group = index[(cumPropensity > randNumScaled)][0]
     return id_group
 
-# %%random sample based on propensity
+# %%random sample based on propensity, for 2D propensity input
 @jit(UniTuple(i8,2)(f8[:, :], f8), nopython=True)
 def select_random_event_2D(propensity_vec, randNum):
     # calculate cumulative propensities
@@ -93,7 +93,7 @@ def select_random_event_2D(propensity_vec, randNum):
     
     return idx
 
-# %%random sample based on propensity
+# %%random sample based on propensity, for 3D propensity input
 @jit(i8(f8[:, :, :], f8), nopython=True)
 def select_random_event_3D(propensity_vec, randNum):
     # calculate cumulative propensities

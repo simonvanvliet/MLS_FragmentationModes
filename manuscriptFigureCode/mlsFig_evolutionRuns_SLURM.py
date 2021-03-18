@@ -12,8 +12,8 @@ vanvliet@zoology.ubc.ca
 import sys
 sys.path.insert(0, '..')
 
-import MlsGroupDynamics_evolve_time as mls
-import MlsGroupDynamics_utilities as util
+from mainCode import MlsGroupDynamics_evolve as mls
+from mainCode import MlsGroupDynamics_utilities as util
 import numpy as np
 import pandas as pd
 import itertools
@@ -22,14 +22,10 @@ import os
 """
 SET SETTINGS
 """
-
-#select which parameter combination to test (integer between 0-29)
-run_index = 23
-
 #SET fileName is appended to file name
-mainName = 'evoRun-2020-12-02'
+mainName = 'evoRun-2021-01-04'
 #SET group fission rates to scan
-gr_Sfission_Vec = np.array([0, 0.1, 4])
+gr_Sfission_Vec = np.array([0, 0.1])
 #SET parName and par0Vec to scan over any parameter of choice
 par0Name = 'indv_NType'
 par0Vec = np.array([1, 2])
@@ -38,17 +34,21 @@ init_Aray = np.array([[0.05,0.05],[0.05,0.5],[0.05,0.95],[0.25,0.5],[0.45,0.5]])
 numInit = init_Aray.shape[0]
 
 #SET Population size
-K_totSnon0 = 2.5E3 #SFis > 0
-K_totS0 = 3E4 #SFis = 0
+K_totSnon0 = 15E3 #SFis > 0
+K_totS0 = 15E4 #SFis = 0
+
+#2Dec run:
+# K_totSnon0 = 3E3 #SFis > 0
+# K_totS0 = 3E4 #SFis = 0
 
 #SET Model default settings
 model_par_def = {
     #time and run settings
     "maxPopSize":       0,
-    "maxT":             1E3,    # total run time
-    "sampleInt":        1E2,    # sampling interval
-    "mav_window":       5E2,    # average over this time window
-    "rms_window":       5E2,    # calc rms change over this time window
+    "maxT":             1E6,    # total run time
+    "sampleInt":        5E3,    # sampling interval
+    "mav_window":       5E4,    # average over this time window
+    "rms_window":       5E4,    # calc rms change over this time window
     # settings for initial condition
     "init_groupNum":    100,    # initial # groups
     "init_fCoop":       1,
@@ -108,7 +108,8 @@ parNameAbbrev = {
 parListName = ['indv_NType',
                'gr_SFis',
                'offspr_sizeInit',
-               'offspr_fracInit']
+               'offspr_fracInit',
+               'K_tot']
 
 """
 Function definitions
@@ -123,13 +124,13 @@ def run_single(runIdx, folder):
     print('start run idx', runIdx)
     #implement local settings
     runIdx = int(runIdx)
-    
+
     if modelParList[runIdx][0] == 0:
         K_tot = K_totS0
     else:
         K_tot = K_totSnon0
-    
-    
+
+
     settings = {'gr_SFis'  : modelParList[runIdx][0],
                 par0Name   : modelParList[runIdx][1],
                 'K_tot'     : K_tot,
@@ -153,4 +154,9 @@ def run_single(runIdx, folder):
 
 #run parscan
 if __name__ == "__main__":
-    run_single(run_index, os.getcwd())
+    runIdx = sys.argv[1]
+    folder = sys.argv[2]
+    runFolder = folder + '/home/' + mainName + '/'
+    if not os.path.exists(runFolder):
+        os.mkdir(runFolder)
+    run_single(runIdx, runFolder)

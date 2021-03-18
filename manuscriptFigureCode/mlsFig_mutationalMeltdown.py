@@ -41,10 +41,10 @@ nCore = 20
 fileName = 'mutationalMeltdown'
 
 #SET nr of replicates
-nReplicate = 3
+nReplicate = 7
 
 #set  mutation rates to try
-mu_Vec = np.logspace(0,-7,20)
+mu_Vec = np.logspace(0,-7,20) 
 
 #setup 2D parameter grid
 offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
@@ -205,7 +205,7 @@ def run_model(nCore):
     #get model parameters to scan
     modelParList = create_model_par_list(model_par)
 
-    # run model, use parallel cores
+    # run model, use parallel cores 
     nJobs = min(len(modelParList), nCore)
     print('starting with %i jobs' % len(modelParList))
     results = Parallel(n_jobs=nJobs, verbose=9, timeout=1.E9)(
@@ -217,8 +217,8 @@ def run_model(nCore):
 
     #convert to pandas dataframe and export
     fileNameFull = fileName + '.pkl'
-    dfSet = [pd.DataFrame.from_records(npa) for npa in results]
-    df = pd.concat(dfSet, axis=0, ignore_index=True)
+    outputComb = np.hstack(results)
+    df = pd.DataFrame.from_records(outputComb)
     df.to_pickle(fileNameFull)
 
     return None
