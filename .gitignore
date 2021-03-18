@@ -9,4 +9,4 @@ __pycache__/
 temp.py
 *.npz
 *.pdf
-vscode*
+.vscode
