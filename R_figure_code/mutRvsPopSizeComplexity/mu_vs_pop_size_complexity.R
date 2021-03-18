@@ -1,9 +1,9 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "mutRvsPopSizeComplexity", "data_mutation_vs_popsize_complexity_RDS")) %>% as_tibble()
+df <- readRDS(here::here("R_figure_code", "mutRvsPopSizeComplexity", "data_mutation_vs_popsize_complexity_RDS")) %>% as_tibble()
 
 # df doesn't have column names, so I will create column names from a different data frame
-colnames <- colnames(readRDS(file = here::here("RcodePlots", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
+colnames <- colnames(readRDS(file = here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
 
 one_type <- df %>% filter(is.nan(`32`))
 colnames(one_type) <- colnames
@@ -52,5 +52,5 @@ colnames(four_types) <- c(colnames[1:23],
   scale_color_grey()
 )
 
-saveRDS(mu_vs_pop_size_plot, file = here::here("RcodePlots", "mutRvsPopSizeComplexity", "plot_mutation_vs_n_complexity_RDS"))
+saveRDS(mu_vs_pop_size_plot, file = here::here("R_figure_code", "mutRvsPopSizeComplexity", "plot_mutation_vs_n_complexity_RDS"))
 

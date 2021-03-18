@@ -1,6 +1,6 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")) %>% as_tibble()
+df <- readRDS(here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")) %>% as_tibble()
 
 colors <- c("#474648", "#2F76AC", "#D9665A", "#E0C537") # colorblind friendly four-color palette
 
@@ -27,7 +27,7 @@ colors <- c("#474648", "#2F76AC", "#D9665A", "#E0C537") # colorblind friendly fo
   labs(x = expression("Mutation rate ("*mu*")"), y = expression("Productivity ("*italic(N)[tot]*")"))
 )
 
-saveRDS(mu_vs_pop_size_plot, file = here::here("RcodePlots", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS"))
+saveRDS(mu_vs_pop_size_plot, file = here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS"))
 
 
 
@@ -55,7 +55,7 @@ saveRDS(mu_vs_pop_size_plot, file = here::here("RcodePlots", "mutRvsPopSize", "p
     labs(x = expression("Mutation rate ("*mu*")"), y = expression("Relative fraction of WT cells"))
 )
 
-saveRDS(mu_vs_frac_coop, file = here::here("RcodePlots", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS"))
+saveRDS(mu_vs_frac_coop, file = here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS"))
 
 
 

@@ -1,7 +1,7 @@
 library(tidyverse)
 
-slope <- readRDS(file = here::here("RcodePlots", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
-migr <-readRDS(file = here::here("RcodePlots", "mutationalMeltdown", "migr_neighbour_avg_RDS"))
+slope <- readRDS(file = here::here("R_figure_code", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
+migr <-readRDS(file = here::here("R_figure_code", "mutationalMeltdown", "migr_neighbour_avg_RDS"))
 
 slope$gr_SFis <- as.character(slope$gr_SFis)
 slope[slope$gr_SFis == "0",]$gr_SFis <- "0.0"
@@ -38,6 +38,6 @@ bind_rows(slope, migr) %>%
   scale_x_continuous(breaks = c(0, 0.25, 0.5), labels = c("0", "0.25", "0.5")) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1"))
 
-ggsave(filename = here::here("RcodePlots", "mutationalMeltdown", "meltdown_neighbour_avg.pdf"),
+ggsave(filename = here::here("R_figure_code", "mutationalMeltdown", "meltdown_neighbour_avg.pdf"),
        height = 5.75, 
        width = 8)

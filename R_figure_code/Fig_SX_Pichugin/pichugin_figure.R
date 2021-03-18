@@ -1,7 +1,7 @@
 library(tidyverse)
 library(cowplot)
 
-df <- readRDS(here::here("RcodePlots", "Fig_SX_Pichugin", "data_pichugin_RDS"))
+df <- readRDS(here::here("R_figure_code", "Fig_SX_Pichugin", "data_pichugin_RDS"))
 df <- tibble(df)
 
 df_summary <- df %>% 
@@ -88,5 +88,5 @@ plot_grid(plot_r_groups,
 
 
 ggsave(
-  here::here("RcodePlots", "Fig_SX_Pichugin", "pichugin_figure.pdf"),
+  here::here("R_figure_code", "Fig_SX_Pichugin", "pichugin_figure.pdf"),
   width = 13, height = 5)

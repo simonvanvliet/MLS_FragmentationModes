@@ -1,9 +1,9 @@
 library(tidyverse)
 
-df_without <- readRDS(file = here::here("RcodePlots", "dynamicsWOGrpEvents", "data_without_group_events_RDS"))
+df_without <- readRDS(file = here::here("R_figure_code", "dynamicsWOGrpEvents", "data_without_group_events_RDS"))
 df_without <- df_without %>% tibble()
 
-df_with <- readRDS(file = here::here("RcodePlots", "dynamicsWGrpEvents", "data_with_group_events_RDS"))
+df_with <- readRDS(file = here::here("R_figure_code", "dynamicsWGrpEvents", "data_with_group_events_RDS"))
 df_with <- df_with %>% tibble() %>% filter(gr_CFis == 0.01)
 
 df <- bind_rows(df_without, df_with) %>% 
@@ -104,11 +104,11 @@ top_plots <- cowplot::plot_grid(plotMut, plotG, plotN,
 
 
 
-mu_n_plot <- readRDS(here::here("RcodePlots", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS"))
+mu_n_plot <- readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS"))
 
-meltdown_plot <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "meltdown_plot_RDS"))
+meltdown_plot <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "meltdown_plot_RDS"))
 
-mu_fcoop <-readRDS(here::here("RcodePlots", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS"))
+mu_fcoop <-readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS"))
 
 bottom_plots <- cowplot::plot_grid(mu_n_plot, 
                    meltdown_plot, 
@@ -117,6 +117,6 @@ bottom_plots <- cowplot::plot_grid(mu_n_plot,
 
 all_plots <- cowplot::plot_grid(top_plots, bottom_plots, nrow = 2)
 
-ggsave(here::here("RcodePlots", "dynamicsWGrpEvents", "dynamics_with_and_without_group_events.pdf"), 
+ggsave(here::here("R_figure_code", "dynamicsWGrpEvents", "dynamics_with_and_without_group_events.pdf"), 
        plot = all_plots, width = 11, height = 7)
  

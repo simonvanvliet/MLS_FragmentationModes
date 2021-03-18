@@ -1,7 +1,7 @@
 library(tidyverse)
 
-df1 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_RDS"))
-df2 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
+df1 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_RDS"))
+df2 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
 df <- bind_rows(df1, df2) # df2 contains extra replicate runs, but the same parameters as df1
 
 plot_df <- df %>% 
@@ -27,4 +27,4 @@ plot <- plot_df %>%
         legend.text = element_text(size = 9)) +
   guides(fill = guide_colourbar(title.position = "top"))
 
-saveRDS(plot, file = here::here("RcodePlots", "mutationalMeltdown", "meltdown_plot_RDS"))
+saveRDS(plot, file = here::here("R_figure_code", "mutationalMeltdown", "meltdown_plot_RDS"))

@@ -1,6 +1,6 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "scanParSpace", "data_scan_par_space_RDS"))
+df <- readRDS(here::here("R_figure_code", "scanParSpace", "data_scan_par_space_RDS"))
 
 plot_list <- vector(mode = "list", length = 2)
 for(i in 1:2){
@@ -41,10 +41,10 @@ for(i in 1:2){
 
 (plot <- egg::ggarrange(plots = plot_list, nrow = 1))
 
-ggsave(filename = here::here("RcodePlots", "scanParSpace", "scan_par_space.pdf"),
+ggsave(filename = here::here("R_figure_code", "scanParSpace", "scan_par_space.pdf"),
        plot = plot,
        width = 7, height = 4)
 
 saveRDS(plot, 
-        file = here::here("RcodePlots", "scanParSpace", "plot_scan_par_space_RDS"))
+        file = here::here("R_figure_code", "scanParSpace", "plot_scan_par_space_RDS"))
 

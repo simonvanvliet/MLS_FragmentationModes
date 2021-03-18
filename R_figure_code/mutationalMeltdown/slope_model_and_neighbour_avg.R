@@ -1,7 +1,7 @@
 library(tidyverse)
 
-df1 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_RDS"))
-df2 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
+df1 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_RDS"))
+df2 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
 df <- bind_rows(df1, df2) # df2 contains extra replicate runs, but the same parameters as df1
 
 plot_df <- df %>% 
@@ -37,8 +37,8 @@ avg <- list(); i <- 0; for (slope in c(0, 0.1, 2, 4)) {
 }
 avg <- bind_rows(avg)
 
-saveRDS(object = avg, file = here::here("RcodePlots", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
-avg <- readRDS(file = here::here("RcodePlots", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
+saveRDS(object = avg, file = here::here("R_figure_code", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
+avg <- readRDS(file = here::here("R_figure_code", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
 
 avg$gr_SFis <- as.character(avg$gr_SFis)
 avg[avg$gr_SFis == "0",]$gr_SFis <- "0.0"

@@ -1,7 +1,7 @@
 library(tidyverse)
 library(patchwork)
 
-landscape <- readRDS(here::here("RcodePlots", "evolution", "landscape_new_RDS"))
+landscape <- readRDS(here::here("R_figure_code", "evolution", "landscape_new_RDS"))
 
 landscape <- landscape %>% 
   group_by(indv_NType, gr_SFis, offspr_size, offspr_frac) %>% 
@@ -13,7 +13,7 @@ long_landscape <- landscape %>%
   pivot_longer(c(ntot, ngrp, size), names_to = "variable")
 
 # Read in evolution files
-evolution <- readRDS(here::here("RcodePlots", "evolution", "evolution_rds"))
+evolution <- readRDS(here::here("R_figure_code", "evolution", "evolution_rds"))
 
 evol_df <- evolution %>% 
   separate(file, c("file", "indv_NType"), sep = "nTyp") %>% 
@@ -76,5 +76,5 @@ for(i in c("ntot", "ngrp", "size")) {
 plots[[1]] / plots[[2]] / plots[[3]]
 
 
-ggsave(file = here::here("RcodePlots", "evolution", "evolution_plot.pdf"),
+ggsave(file = here::here("R_figure_code", "evolution", "evolution_plot.pdf"),
        width = 7, height = 5)

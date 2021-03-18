@@ -1,7 +1,7 @@
 library(tidyverse)
 
-df1 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_migr_RDS"))
-df2 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_migr_more_replicates_RDS"))
+df1 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_migr_RDS"))
+df2 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_migr_more_replicates_RDS"))
 
 df <- bind_rows(df1, df2)
 
@@ -13,9 +13,9 @@ plot_df <- df %>%
 #summarize(max_mu = max(log(maxMu), na.rm = TRUE))
 
 # for the first row (migration = 0) we get the data from the mutational meltdown on slope 
-df3 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_RDS")) %>% 
+df3 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_RDS")) %>% 
   filter(indv_migrR == 0, gr_SFis == 0) 
-df4 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_more_replicates_RDS")) %>% 
+df4 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_more_replicates_RDS")) %>% 
   filter(indv_migrR == 0, gr_SFis == 0) 
 
 df5 <- bind_rows(df3, df4) %>% 
@@ -56,7 +56,7 @@ avg <- list(); i <- 0; for (migr in c(0, 0.01, 0.1, 1)) {
 }
 avg <- bind_rows(avg)
 
-saveRDS(object = avg, file = here::here("RcodePlots", "mutationalMeltdown", "migr_neighbour_avg_RDS"))
+saveRDS(object = avg, file = here::here("R_figure_code", "mutationalMeltdown", "migr_neighbour_avg_RDS"))
 
 
 avg$indv_migrR <- as.character(avg$indv_migrR)

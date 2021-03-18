@@ -1,6 +1,6 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "Fig_SX_Ni", "data_scan_complexity_Ni_3_RDS"))
+df <- readRDS(here::here("R_figure_code", "Fig_SX_Ni", "data_scan_complexity_Ni_3_RDS"))
 
 plot_df <- df %>% 
   group_by(indv_NType, indv_mutR, offspr_frac, offspr_size) %>% 
@@ -77,6 +77,6 @@ plot_Ni <- cowplot::plot_grid(triangles, plot_mu, labels = c("A", "B"),
                    nrow = 1, rel_widths = c(1, 0.6))
 
 ggsave(plot = plot_Ni, 
-       filename = here::here("RcodePlots", "Fig_SX_Ni", "plot_Ni.pdf"),
+       filename = here::here("R_figure_code", "Fig_SX_Ni", "plot_Ni.pdf"),
        width = 11, height = 3
        )                  

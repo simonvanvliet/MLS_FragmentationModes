@@ -1,9 +1,9 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "Fig_SX_Kgrp", "data_scan_complexity_Kgrp_RDS"))
+df <- readRDS(here::here("R_figure_code", "Fig_SX_Kgrp", "data_scan_complexity_Kgrp_RDS"))
 
 # df doesn't have column names, so I will create column names from a different data frame
-colnames <- colnames(readRDS(file = here::here("RcodePlots", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
+colnames <- colnames(readRDS(file = here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
 
 one_type <- df %>% filter(is.nan(`32`))
 colnames(one_type) <- colnames
@@ -127,6 +127,6 @@ plot_K <- cowplot::plot_grid(triangles, plot_mu, labels = c("A", "B"),
                    nrow = 1, rel_widths = c(1, 0.6))
 
 ggsave(plot = plot_K, 
-       filename = here::here("RcodePlots", "Fig_SX_Kgrp", "plot_Kgrp.pdf"),
+       filename = here::here("R_figure_code", "Fig_SX_Kgrp", "plot_Kgrp.pdf"),
        width = 11, height = 3
        )                  

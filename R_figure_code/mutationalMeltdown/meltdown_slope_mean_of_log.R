@@ -1,7 +1,7 @@
 library(tidyverse)
 
-df1 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_RDS"))
-df2 <- readRDS(here::here("RcodePlots", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
+df1 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_RDS"))
+df2 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_more_replicates_RDS"))
 df <- bind_rows(df1, df2) # df2 contains extra replicate runs, but the same parameters as df1
 
 plot_df <- df %>% 
@@ -56,5 +56,5 @@ max_df$S <- factor(max_df$S, levels = c("0.0", "0.1", "2","4"))
 
   )
 
-ggsave(filename = here::here("RcodePlots", "mutationalMeltdown", "meltdown_slope_mean_of_log_single_scale_with_max_polygon.pdf"),
+ggsave(filename = here::here("R_figure_code", "mutationalMeltdown", "meltdown_slope_mean_of_log_single_scale_with_max_polygon.pdf"),
        plot = plot, height = 7, width = 8)

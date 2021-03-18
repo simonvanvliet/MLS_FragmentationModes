@@ -1,9 +1,9 @@
 library(tidyverse)
 
-df <- readRDS(file = here::here("RcodePlots", "transects", "data_transects_RDS"))
+df <- readRDS(file = here::here("R_figure_code", "transects", "data_transects_RDS"))
 
 # df doesn't have column names, so I will create column names from a different data frame
-colnames <- colnames(readRDS(file = here::here("RcodePlots", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
+colnames <- colnames(readRDS(file = here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
 
 one_type <- df %>% filter(is.nan(`32`))
 colnames(one_type) <- colnames
@@ -49,7 +49,7 @@ colnames(four_types) <- c(colnames[1:23],
   scale_y_continuous(labels = scales::label_comma(accuracy = 1)) +
   scale_color_grey())
 
-saveRDS(transect_mu_plot, file = here::here("RcodePlots", "transects", "plot_transect_mu_RDS"))
+saveRDS(transect_mu_plot, file = here::here("R_figure_code", "transects", "plot_transect_mu_RDS"))
                    
 
 (transect_nr_species_plot <- rbind(
@@ -78,4 +78,4 @@ saveRDS(transect_mu_plot, file = here::here("RcodePlots", "transects", "plot_tra
   scale_color_grey()
 )
 
-saveRDS(transect_nr_species_plot, file = here::here("RcodePlots", "transects", "plot_transect_nr_species_RDS"))
+saveRDS(transect_nr_species_plot, file = here::here("R_figure_code", "transects", "plot_transect_nr_species_RDS"))

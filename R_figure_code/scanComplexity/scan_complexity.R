@@ -1,9 +1,9 @@
 library(tidyverse)
 
-df <- readRDS(here::here("RcodePlots", "scanComplexity", "data_scan_complexity_RDS"))
+df <- readRDS(here::here("R_figure_code", "scanComplexity", "data_scan_complexity_RDS"))
 
 # df doesn't have column names, so I will create column names from a different data frame
-colnames <- colnames(readRDS(file = here::here("RcodePlots", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
+colnames <- colnames(readRDS(file = here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
 
 one_type <- df %>% filter(is.nan(`32`))
 colnames(one_type) <- colnames
@@ -114,14 +114,14 @@ plot_list[[4]] <- plot_list[[4]] + coord_cartesian(ylim = c(0.0, 0.98))
 
 triangles <- egg::ggarrange(plots = plot_list, nrow = 1)
 
-saveRDS(triangles, file = here::here("RcodePlots", "scanComplexity", "plot_scan_complexity_RDS"))
+saveRDS(triangles, file = here::here("R_figure_code", "scanComplexity", "plot_scan_complexity_RDS"))
 
 
-scan_comp_plot <- readRDS(here::here("RcodePlots", "scanComplexity", "plot_scan_complexity_RDS"))
+scan_comp_plot <- readRDS(here::here("R_figure_code", "scanComplexity", "plot_scan_complexity_RDS"))
 
-plotA <- readRDS(here::here("RcodePlots", "transects", "plot_transect_nr_species_RDS"))
-plotB <- readRDS(here::here("RcodePlots", "mutRvsPopSizeComplexity", "plot_mutation_vs_n_complexity_RDS"))
-plotC <- readRDS(here::here("RcodePlots", "transects", "plot_transect_mu_RDS"))
+plotA <- readRDS(here::here("R_figure_code", "transects", "plot_transect_nr_species_RDS"))
+plotB <- readRDS(here::here("R_figure_code", "mutRvsPopSizeComplexity", "plot_mutation_vs_n_complexity_RDS"))
+plotC <- readRDS(here::here("R_figure_code", "transects", "plot_transect_mu_RDS"))
 
 
 plotA <- plotA +
@@ -145,6 +145,6 @@ final_plot <- cowplot::plot_grid(
   nrow = 2)
 
 
-ggsave(here::here("RcodePlots", "scanComplexity", "complexity_plot.pdf"),
+ggsave(here::here("R_figure_code", "scanComplexity", "complexity_plot.pdf"),
        plot = final_plot,
        width = 9.5, height = 6)
