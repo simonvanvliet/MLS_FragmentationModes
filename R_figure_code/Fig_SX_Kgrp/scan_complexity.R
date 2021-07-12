@@ -71,12 +71,11 @@ for (i in 1:3){
     geom_tile(aes(x = offspr_size, y = offspr_frac, fill = nr_cells)) +
     cowplot::theme_cowplot() +
     cowplot::panel_border() +
-    labs(subtitle = substitute(expr = paste(italic("m"), " = ", i), env = list(i = i)),
-         x = expression(italic(s))) +
+    labs(subtitle = substitute(expr = paste(italic("m"), " = ", i), env = list(i = i))) +
     theme(aspect.ratio = 1,
           axis.title.y = element_blank(),
-          axis.text.x = element_text(),
-          axis.title.x = element_text(),
+          axis.text.y = element_blank(),
+          axis.title.x = element_blank(),
           legend.text = element_text(size = 8),
           legend.direction = "horizontal",
           legend.key.width = unit(0.45, "cm"),
@@ -89,7 +88,11 @@ for (i in 1:3){
   if(i == 1) {
     p <- p + theme(axis.text.y = element_text(),
                    axis.title.y = element_text(angle = 90)) +
-      labs(y = expression(italic(n))) 
+      labs(y = expression(atop("Fractional offspring", "number ("*italic(n)*")"))) 
+  } else if (i == 2) {
+    p <- p + theme(axis.text.x = element_text(),
+                   axis.title.x = element_text()) +
+      labs(x = expression("Fractional offspring size ("*italic(s)*")"))
   } else { p <- p + theme(axis.text.y = element_blank()) }
   
   plot_list[[i]] <- p
@@ -113,18 +116,19 @@ plot_mu <- rbind(
   cowplot::theme_cowplot() +
   theme(legend.text = element_text(size = 9),
         legend.title = element_text(size = 9)) +
-  labs(x = "Reproduction strategy\n(upper transect)", y = expression("Productivity ("*italic(N)[tot]*")"), color = "Mutation\nrate") +
+  labs(x = "Reproduction strategy\n(upper transect)", y = expression("Productivity ("*italic(N)[total]*")"), color = "Mutation\nrate") +
   scale_x_continuous(breaks = c(0.01, 0.248, 0.486), 
-                   labels = c(expression(atop(italic("s")*"= 0.01", italic(n)*"= 0.92")), 
-                              expression(atop(italic("s")*"= 0.248", italic(n)*"= 0.71")),
-                              expression(atop(italic("s")*"= 0.486", italic(n)*"= 0.5"))
-                   ),
-                   expand = expansion(mult = c(0.05, 0.1))) +
+                     labels = c(expression(atop(italic("s")*"= 0.01", italic(n)*"= 0.92")), 
+                                expression(atop(italic("s")*"= 0.248", italic(n)*"= 0.71")),
+                                expression(atop(italic("s")*"= 0.486", italic(n)*"= 0.5"))
+                     ),
+                     expand = expansion(mult = c(0.05, 0.1))) +
   scale_y_continuous(labels = scales::label_comma(accuracy = 1)) +
   scale_color_grey()
 
 plot_K <- cowplot::plot_grid(triangles, plot_mu, labels = c("A", "B"),
-                   nrow = 1, rel_widths = c(1, 0.6))
+                             nrow = 1, rel_widths = c(1, 0.6))
+
 
 ggsave(plot = plot_K, 
        filename = here::here("R_figure_code", "Fig_SX_Kgrp", "plot_Kgrp.pdf"),

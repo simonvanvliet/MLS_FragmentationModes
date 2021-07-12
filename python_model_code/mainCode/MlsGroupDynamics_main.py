@@ -30,7 +30,7 @@ stateVar = ['NTot', 'fCoop', 'NGrp', 'groupSizeAv', 'groupSizeMed']
 
 
 """============================================================================
-Init functions 
+Init functions
 ============================================================================"""
 
 
@@ -40,7 +40,7 @@ def init_output_matrix(model_par):
     sampleInt = model_par['sampleInt']
     maxT = model_par['maxT']
     numTSample = int(np.ceil(maxT / sampleInt) + 1)
-    
+
     #create list of state variables to store
     addVar = ['rms_err_NTot', 'rms_err_NGrp', 'time']
     stateVarPlus = stateVar + \
@@ -58,7 +58,7 @@ def init_output_matrix(model_par):
     output = np.full(numTSample, np.nan, dType)
     output['time'][0] = 0
 
-    # init matrix to track distribution fraction of cooperators 
+    # init matrix to track distribution fraction of cooperators
     nBinFCoop = 20
     binFCoop = np.linspace(0, 1, nBinFCoop)
     distFCoop = np.full((numTSample, nBinFCoop-1), np.nan)
@@ -94,7 +94,7 @@ def init_groupMat(model_par):
 
 
 """============================================================================
-Sample model code 
+Sample model code
 ============================================================================"""
 
 #create distribution
@@ -131,8 +131,8 @@ def calc_cell_stat(groupMat):
 
 # sample model
 def sample_model(groupMatrix, output, distFCoop, binFCoop,
-                 distGrSize, binGrSize, sample_idx, currT, 
-                 mavInt, rmsInt, 
+                 distGrSize, binGrSize, sample_idx, currT,
+                 mavInt, rmsInt,
                  stateVarPlus, NBGrp, NDGrp):
     # store time
     output['time'][sample_idx] = currT
@@ -150,15 +150,15 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
     for tt in range(NType):
         output['N%i' %tt][sample_idx] = NTot_type[tt*2]
         output['N%imut' %tt][sample_idx] = NTot_type[tt*2+1]
-       
+
     output['NTot'][sample_idx] = NTot
     output['fCoop'][sample_idx] = NCoop / NTot
-    
+
     output['NGrp'][sample_idx] = NGrp
     output['groupSizeAv'][sample_idx] = groupSizeAv
     output['groupSizeMed'][sample_idx] = groupSizeMed
-    
-    #calc moving average 
+
+    #calc moving average
     if sample_idx >= 1:
         for varname in stateVarPlus:
             outname = varname + '_mav'
@@ -172,7 +172,7 @@ def sample_model(groupMatrix, output, distFCoop, binFCoop,
             output['rms_err_NTot'][sample_idx] = util.calc_rms_error(
                     output['NTot_mav'], sample_idx, rmsInt) / output['NTot_mav'][sample_idx]
         else:
-            output['rms_err_NTot'][sample_idx] = np.nan    
+            output['rms_err_NTot'][sample_idx] = np.nan
         output['rms_err_NGrp'][sample_idx] = util.calc_rms_error(
             output['NGrp_mav'], sample_idx, rmsInt) / output['NGrp_mav'][sample_idx]
 
@@ -199,15 +199,15 @@ def sample_nan(groupMatrix, output, distFCoop, binFCoop,
     for tt in range(NType):
         output['N%i' %tt][sample_idx] = np.nan
         output['N%imut' %tt][sample_idx] = np.nan
-       
+
     output['NTot'][sample_idx] = np.nan
     output['fCoop'][sample_idx] = np.nan
-    
+
     output['NGrp'][sample_idx] = np.nan
     output['groupSizeAv'][sample_idx] = np.nan
     output['groupSizeMed'][sample_idx] = np.nan
 
-    #calc moving average 
+    #calc moving average
     for varname in stateVarPlus:
         outname = varname + '_mav'
         output[outname][sample_idx] = np.nan
@@ -226,7 +226,7 @@ def sample_extinction(output, distFCoop, binFCoop,
         outname = varname + '_mav'
         output[varname][sample_idx] = 0
         output[outname][sample_idx] = 0
-        
+
     output['rms_err_NTot'][sample_idx] = 0
     output['rms_err_NGrp'][sample_idx] = 0
 
@@ -235,13 +235,13 @@ def sample_extinction(output, distFCoop, binFCoop,
 
     # calc distribution fraction cooperator
     distFCoop[sample_idx,:] = 0
-    
+
     sample_idx += 1
 
     return sample_idx
 
 """============================================================================
-Sub functions individual dynamics 
+Sub functions individual dynamics
 ============================================================================"""
 
 # calculate birth and death rate for all groups and types
@@ -249,17 +249,17 @@ Sub functions individual dynamics
 # To use @jit provide the data type of output and input, nopython=true makes compilation faster
 @jit(void(f8[::1], f8[:, ::1], f8[::1], f8[::1], f8, f8, i8, i8), nopython=True)
 def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, NType, NGrp):
-    
+
     #loop cell types
     for tt in range(NType):
         #setup indices
         cIdx = 2 * tt
         dIdx = 2 * tt + 1
-        bIdxC1 = cIdx * NGrp 
+        bIdxC1 = cIdx * NGrp
         bIdxD1 = dIdx * NGrp
         dIdxC1 = bIdxC1 + 2 * NType * NGrp
         dIdxD1 = bIdxD1 + 2 * NType * NGrp
-        
+
         #calc density of cooperating partners
         if NType == 1:
             #coopPart = n0/grSizeVec
@@ -273,27 +273,27 @@ def calc_indv_rates(rates, groupMat, grSizeVec, birthRVec, deathR, delta_indv, N
             for pp in range(NType):
                 if pp != tt: #exclude self
                     coopPart *= groupMat[pp*2, :] / grSizeVec
-                
+
         # calc rates
         rates[bIdxC1: bIdxC1 + NGrp] = birthRVec[cIdx] * coopPart * groupMat[cIdx, :]
-        rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :] 
+        rates[bIdxD1: bIdxD1 + NGrp] = birthRVec[dIdx] * coopPart * groupMat[dIdx, :]
 
-      
+
         if delta_indv != 0:
             rates[dIdxC1: dIdxC1 + NGrp] = deathR * groupMat[cIdx, :] * (grSizeVec ** delta_indv)
             rates[dIdxD1: dIdxD1 + NGrp] = deathR * groupMat[dIdx, :] * (grSizeVec ** delta_indv)
         else:
             rates[dIdxC1: dIdxC1 + NGrp] = deathR * groupMat[cIdx, :]
-            rates[dIdxD1: dIdxD1 + NGrp] = deathR * groupMat[dIdx, :] 
+            rates[dIdxD1: dIdxD1 + NGrp] = deathR * groupMat[dIdx, :]
 
     return None
 
 # process individual level events
 @jit(i8(f8[:, ::1], f8[::1], f8, f8[::1], i8, i8), nopython=True)
 def process_indv_event(groupMat, indvRate, mutR, rand, NType, NGrp):
-    # Note: groupMat is updated in place, it does not need to be returned 
+    # Note: groupMat is updated in place, it does not need to be returned
     NTypeWMut = NType*2
-    
+
     # select random event based on propensity
     eventID = util.select_random_event(indvRate, rand[0])
 
@@ -332,7 +332,7 @@ def process_indv_event(groupMat, indvRate, mutR, rand, NType, NGrp):
 
 
 """============================================================================
-Sub functions migration dynamics 
+Sub functions migration dynamics
 ============================================================================"""
 
 # process migration event
@@ -345,7 +345,7 @@ def process_migration_event(groupMat, grSizeVec, NGrp, NType, rand):
 
     # select random type of migrant based on population size
     cellType = util.select_random_event(groupMat[:, grpIDSource], rand[1])
-    
+
     # select random target group
     grpIDTarget = int(np.floor(rand[2] * NGrp))
 
@@ -368,7 +368,7 @@ def process_migration_event(groupMat, grSizeVec, NGrp, NType, rand):
 
 
 """============================================================================
-Sub functions group dynamics 
+Sub functions group dynamics
 ============================================================================"""
 
 # remove group from group matrix
@@ -388,24 +388,29 @@ def remove_group(groupMat, groupDeathID):
 
 
 # calculate fission and extinction rate of all groups
-@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
-def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp, 
-    gr_CFis, gr_SFis, K_grp, K_tot,
+@jit(void(f8[::1], f8[:, ::1], f8[::1], f8, i8, f8, f8, f8, f8, f8, f8, f8, f8), nopython=True)
+def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
+    gr_CFis, gr_SFis, K_grp, K_tot, K_ind,
     delta_grp, delta_tot, delta_size):
 
+    beta = 1E9 #large constant that insures group fission when they reach K_ind
+
     # calc fission rate
-    fissionR = grSizeVec * gr_SFis + gr_CFis
-  
+    if gr_SFis == np.inf:
+        fissionR = (grSizeVec > K_ind) * beta + gr_CFis
+    else:
+        fissionR = grSizeVec * gr_SFis + gr_CFis
+
     # calc extinction rate
     if delta_grp != 0:
         groupDep = (NGrp / K_grp) ** delta_grp
     else:
         groupDep = 1
-        
+
     if delta_tot != 0:
         popDep = (NTot / K_tot) ** delta_tot
     else:
-        popDep = 1    
+        popDep = 1
 
     if delta_size != 0:
         sizeEffect = (1/grSizeVec) ** delta_size
@@ -420,21 +425,21 @@ def calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
 
     return None
 
-    
+
 @jit(Tuple((i8[:],i8))(f8, f8, i8), nopython=True)
 def distribute_offspring(offspr_size, offspr_frac, NCellPar):
     #vector with destination index for all cells
     #initialize to -1: stay with parent
     destinationIdx = np.full(NCellPar, -1)
-        
+
     # calc expected values
     nPerOff_expect = offspr_size * NCellPar
     nToOff_expect = offspr_frac * NCellPar
-    
+
     #draw total number of cells passed to offspring from Poisson distribution
     nToOff = util.truncated_poisson(nToOff_expect, NCellPar)
-    
-    if nToOff > 0 and nPerOff_expect>0: 
+
+    if nToOff > 0 and nPerOff_expect>0:
         #draw size of offspring groups from truncated Poisson
         #min group size is 1, max is nToOff
         nPerOff = max(1, util.truncated_poisson(nPerOff_expect, nToOff))
@@ -445,32 +450,32 @@ def distribute_offspring(offspr_size, offspr_frac, NCellPar):
         destinationIdx[0:nToOffFull] = np.kron(np.arange(nOffFull), np.ones(nPerOff))
         #assign remaining cell to last offspring group
         destinationIdx[nToOffFull:nToOff] = nOffFull
-        
-        nOffspring = nOffFull        
+
+        nOffspring = nOffFull
         if nToOffFull < nToOff:
             nOffspring += 1
-        
-        #random shuffle matrix 
+
+        #random shuffle matrix
         destinationIdx = np.random.permutation(destinationIdx)
     else:
         nOffspring = 0
-    
+
     return (destinationIdx, nOffspring)
 
 @jit(Tuple((f8[::1],f8[:, ::1],i8))(f8[::1], f8, f8), nopython=True)
-def fission_group(parentGroup, offspr_size, offspr_frac): 
+def fission_group(parentGroup, offspr_size, offspr_frac):
     #get group properties
     NCellPar = int(parentGroup.sum())
     matShape = parentGroup.shape
-    #distribute cells   
-    destinationIdx, nOffspring = distribute_offspring(offspr_size, 
-                                                      offspr_frac, 
+    #distribute cells
+    destinationIdx, nOffspring = distribute_offspring(offspr_size,
+                                                      offspr_frac,
                                                       NCellPar)
-    if  nOffspring>0:   
+    if  nOffspring>0:
         #init offspring and parremt array
         offspring = np.zeros((matShape[0], nOffspring))
         parrentNew = np.zeros(matShape[0])
-        
+
         #find non zero elements
         ttIDxTuple = np.nonzero(parentGroup)
         ttIDxVec = ttIDxTuple[0]
@@ -489,8 +494,8 @@ def fission_group(parentGroup, offspr_size, offspr_frac):
     else:
         #nothing happens
         parrentNew = parentGroup
-        offspring = np.zeros((0, 0)) 
-        
+        offspring = np.zeros((0, 0))
+
     return (parrentNew, offspring, nOffspring)
 
 # process individual level events
@@ -517,7 +522,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
             parrentNew, offspring, nOffspring = fission_group(parentGroup, offspr_size, offspr_frac)
 
             # only add daughter if not empty
-            if offspring.size > 0:                
+            if offspring.size > 0:
                 if parrentNew.sum() > 0: # update parrent
                     groupMat[:, eventGroup] = parrentNew
                 else: #remove parrent
@@ -526,7 +531,7 @@ def process_group_event(groupMat, grpRate, rand, offspr_size, offspr_frac, NBGrp
                 # add new daughter group
                 groupMat = np.column_stack((groupMat, offspring))
                 NBGrp += nOffspring
-    
+
             NGrp = groupMat.shape[1]
 
     else:
@@ -568,8 +573,8 @@ def calc_time_steps(model_par):
         math.ceil(model_par['mav_window'] / model_par['sampleInt']))
     rmsInt = int(
         math.ceil(model_par['rms_window'] / model_par['sampleInt']))
-    
-    
+
+
     mavInt = max(mavInt, 1)
     rmsInt = max(rmsInt, 1)
 
@@ -616,8 +621,8 @@ def run_model(model_par):
     inv_migrR  = float(model_par['indv_migrR'])
     indv_K     = float(model_par['indv_K'])
     grp_tau    = float(model_par['grp_tau'])
-    
-        
+
+
     #get group rates
     gr_CFis    = float(model_par['gr_CFis'])
     gr_SFis    = float(model_par['gr_SFis']) / float(indv_K)
@@ -630,24 +635,24 @@ def run_model(model_par):
     #get group reproduction traits
     offspr_size = float(model_par['offspr_size'])
     offspr_frac = float(model_par['offspr_frac'])
-    
+
     #get max runTime
     if 'maxRunTime' in model_par:
         maxRunTime = model_par['maxRunTime']
     else:
         maxRunTime = np.inf
-    
+
     #check rates
-    if offspr_size > 0.5: 
+    if offspr_size > 0.5:
         print('cannot do that: offspr_size < 0.5 and offspr_size < offspr_frac < 1')
         raise ValueError
     elif offspr_frac < offspr_size or offspr_frac > (1-offspr_size):
         print('cannot do that: offspr_frac should be offspr_size < offspr_frac < 1-offspr_size')
         raise ValueError
-    
+
     # Initialize model, get rates and init matrices
     maxT, minTRun, sampleInt, mavInt, rmsInt = calc_time_steps(model_par)
-                        
+
     # init counters
     currT = 0
     ttR = 0
@@ -658,17 +663,17 @@ def run_model(model_par):
 
     #init static helper vectors
     oneVecType, birthRVec, indv_deathR = adjust_indv_rates(model_par)
-    
+
     # initialize output matrix
     output, distFCoop, binFCoop, distGrSize, binGrSize = init_output_matrix(model_par)
-    
+
     # initialize group matrix
     groupMat = init_groupMat(model_par)
     NGrp     = groupMat.shape[1]
 
     # creates matrix with rndSize0 entries, it is recreated if needed
     rndSize0 = int(1E6)
-    rndSize1 = 5 
+    rndSize1 = 5
     randMat = util.create_randMat(rndSize0, rndSize1)
 
     #init dynamic helper vectors
@@ -677,10 +682,10 @@ def run_model(model_par):
 
     # get first sample of init state
     sampleIdx = sample_model(groupMat, output, distFCoop, binFCoop,
-                             distGrSize, binGrSize, sampleIdx, currT, 
+                             distGrSize, binGrSize, sampleIdx, currT,
                              mavInt, rmsInt, stateVarPlus,
                              NBGrp, NDGrp)
-    
+
     startT = time.time()
 
     # loop time steps
@@ -697,10 +702,10 @@ def run_model(model_par):
         calc_indv_rates(indvRate, groupMat, grSizeVec, birthRVec,
                         indv_deathR, delta_indv,
                         NType, NGrp)
-        
+
         # calc rates of group events
         calc_group_rates(grpRate, groupMat, grSizeVec, NTot, NGrp,
-                        gr_CFis, gr_SFis, K_grp, K_tot,
+                        gr_CFis, gr_SFis, K_grp, K_tot, indv_K,
                         delta_grp, delta_tot, delta_size)
 
         # calculate total propensities
@@ -717,7 +722,7 @@ def run_model(model_par):
         groupsHaveChanged = False
         if rescaledRand < indvProp:
             # individual level event - select and process individual level event
-            groupDeathID = process_indv_event(groupMat, indvRate, 
+            groupDeathID = process_indv_event(groupMat, indvRate,
                                               indv_mutR, randMat[ttR, 2:4], NType, NGrp)
             if groupDeathID > -1:  # remove empty group
                 groupMat, NGrp = remove_group(groupMat, groupDeathID)
@@ -725,7 +730,7 @@ def run_model(model_par):
                 groupsHaveChanged = True
         elif rescaledRand < (indvProp + migrProp):
             # migration event - select and process migration event
-            groupDeathID = process_migration_event(groupMat, grSizeVec, 
+            groupDeathID = process_migration_event(groupMat, grSizeVec,
                                                    NGrp, NType, randMat[ttR, 2:5])
             if groupDeathID > -1:  # remove empty group
                 groupMat, NGrp = remove_group(groupMat, groupDeathID)
@@ -733,7 +738,7 @@ def run_model(model_par):
                 groupsHaveChanged = True
         else:
             # group level event - select and process group level event
-            groupMat, NGrp, NBGrp, NDGrp = process_group_event(groupMat, grpRate, randMat[ttR, 2:4], 
+            groupMat, NGrp, NBGrp, NDGrp = process_group_event(groupMat, grpRate, randMat[ttR, 2:4],
                                                  offspr_size, offspr_frac, NBGrp, NDGrp)
             groupsHaveChanged = True
 
@@ -743,7 +748,7 @@ def run_model(model_par):
                                               distGrSize, sampleIdx, currT, stateVarPlus)
                 break
             else: #otherwise, recreate helper vectors
-                onesGrp, onesIndR, onesGrpR, indvRate, grpRate = create_helper_vector(NGrp, 
+                onesGrp, onesIndR, onesGrpR, indvRate, grpRate = create_helper_vector(NGrp,
                                                                                       NType)
 
         # update time
@@ -753,7 +758,7 @@ def run_model(model_par):
         nextSampleT = sampleInt * sampleIdx
         if currT >= nextSampleT:
             sampleIdx = sample_model(groupMat, output, distFCoop, binFCoop,
-                                     distGrSize, binGrSize, sampleIdx, currT, 
+                                     distGrSize, binGrSize, sampleIdx, currT,
                                      mavInt, rmsInt, stateVarPlus,
                                      NBGrp, NDGrp)
             # check if steady state has been reached
@@ -765,35 +770,35 @@ def run_model(model_par):
 
                 if NCoopStable and NGrpStable:
                     break
-                
+
             # check if population size remains in bounds
             if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
                 sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
-                                     distGrSize, binGrSize, sampleIdx - 1, 
-                                     currT, mavInt, rmsInt, stateVarPlus)
-                break
-            
-            #check if we are in allowed run time
-            if (time.time() - startT) > maxRunTime:
-                sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
-                                     distGrSize, binGrSize, sampleIdx - 1, 
+                                     distGrSize, binGrSize, sampleIdx - 1,
                                      currT, mavInt, rmsInt, stateVarPlus)
                 break
 
-        # check if simulation ends before reaching steady state 
+            #check if we are in allowed run time
+            if (time.time() - startT) > maxRunTime:
+                sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
+                                     distGrSize, binGrSize, sampleIdx - 1,
+                                     currT, mavInt, rmsInt, stateVarPlus)
+                break
+
+        # check if simulation ends before reaching steady state
         if output['NTot'][sampleIdx - 1] > model_par['maxPopSize']:
             sampleIdx = sample_nan(groupMat, output, distFCoop, binFCoop,
-                                    distGrSize, binGrSize, sampleIdx - 1, 
+                                    distGrSize, binGrSize, sampleIdx - 1,
                                     currT, mavInt, rmsInt, stateVarPlus)
             break
-    
-    
-    
+
+
+
     # cut off non existing time points at end
     output = output[0:sampleIdx]
     distFCoop = distFCoop[0:sampleIdx, :]
     distGrSize = distGrSize[0:sampleIdx, :]
-    
+
     return (output, distFCoop, distGrSize)
 
 
@@ -802,166 +807,166 @@ Code that calls model and plots results
 ============================================================================"""
 
 
-#run model store only final state 
+#run model store only final state
 def run_model_dynamics_fig(model_par):
     """[Runs MLS model and stores dynamics]
-    
+
     Parameters
     ----------
     model_par : [Dictionary]
         [Stores model parameters]
-    
+
     Returns
     -------
     output_matrix : [Numpy recarray]
         [Contains steady state values of system variables and parameters]
 
-    """    
+    """
     # run model
-    output, distFCoop, distGrSize = run_model(model_par)    
+    output, distFCoop, distGrSize = run_model(model_par)
     numt = output.size
-    
+
     #input parameters to store
     parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
-               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis',
                'offspr_size','offspr_frac',
                'indv_K', 'K_tot']
-                                                            
+
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
         ['N%imut' % x for x in range(model_par['indv_NType'])]
-    
+
     # init output matrix
     dTypeList1 = [(x, 'f8') for x in parList]
     dTypeList2 = [(x, 'f8') for x in stateVarPlus]
     dTypeList3 = [(x+'_mav', 'f8') for x in stateVarPlus]
     dTypeList =  [('run_idx', 'f8')] +  [('replicate_idx', 'f8')] + [('time', 'f8')] + \
                 dTypeList1 + dTypeList2 + dTypeList3
-                
+
     dType = np.dtype(dTypeList)
-    output_matrix = np.zeros((numt), dType)    
-    
+    output_matrix = np.zeros((numt), dType)
+
     # store temporal dynamics
     for var in stateVarPlus:
         output_matrix[var] = output[var]
         var_mav = var + '_mav'
         output_matrix[var_mav] = output[var_mav]
-    
+
     for par in parList:
         output_matrix[par] = model_par[par]
-        
+
     output_matrix['run_idx'] = model_par['run_idx']
     output_matrix['time'] = output['time']
-    
+
     if 'replicate_idx' in model_par:
         output_matrix['replicate_idx'] = model_par['replicate_idx']
     else:
-        output_matrix['replicate_idx'] = 1   
-        
+        output_matrix['replicate_idx'] = 1
+
     return (output_matrix)
 
-#run model store only final state 
+#run model store only final state
 def run_model_steadyState_fig(model_par):
     """[Runs MLS model and stores steady state]
-    
+
     Parameters
     ----------
     model_par : [Dictionary]
         [Stores model parameters]
-    
+
     Returns
     -------
     output_matrix : [Numpy recarray]
         [Contains steady state values of system variables and parameters]
 
-    """    
+    """
     # run model
-    output, distFCoop, distGrSize = run_model(model_par)    
+    output, distFCoop, distGrSize = run_model(model_par)
     numt = output.size
-    
+
     #input parameters to store
     parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
-               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis',
                'offspr_size','offspr_frac',
                'indv_K', 'K_tot',
                'delta_indv', 'delta_tot', 'delta_size', 'delta_grp', 'K_grp']
-                                    
+
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
         ['N%imut' % x for x in range(model_par['indv_NType'])]
-    
+
     # init output matrix
     dTypeList1 = [(x, 'f8') for x in parList]
     dTypeList2 = [(x, 'f8') for x in stateVarPlus]
     dTypeList3 = [(x+'_mav', 'f8') for x in stateVarPlus]
     dTypeList =  [('run_idx', 'f8')] +  [('replicate_idx', 'f8')] + \
                 dTypeList1 + dTypeList2 + dTypeList3
-                
+
     dType = np.dtype(dTypeList)
-    output_matrix = np.zeros((1), dType)    
-    
+    output_matrix = np.zeros((1), dType)
+
     # store temporal dynamics
     for var in stateVarPlus:
         output_matrix[var] = output[var][-1]
         var_mav = var + '_mav'
         output_matrix[var_mav] = output[var_mav][-1]
-    
+
     for par in parList:
         output_matrix[par] = model_par[par]
-        
+
     output_matrix['run_idx'] = model_par['run_idx']
-    
+
     if 'replicate_idx' in model_par:
         output_matrix['replicate_idx'] = model_par['replicate_idx']
     else:
-        output_matrix['replicate_idx'] = 1   
-        
+        output_matrix['replicate_idx'] = 1
+
     return (output_matrix)
 
 
 #return data type of output
 def columnNames_steadyState_fig(model_par):
     """[return column names  of output of run_model_steadyState_fig]
-    
+
     Parameters
     ----------
     model_par : [Dictionary]
         [Stores model parameters]
-    
+
     Returns
     -------
     columnNames : [lis]
         [column names of output returned by run_model_steadyState_fig]
 
-    """    
+    """
     # parameters to store
     parList = ['indv_NType', 'indv_asymmetry', 'indv_cost',
-               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis', 
+               'indv_mutR','indv_migrR', 'gr_SFis', 'gr_CFis',
                'offspr_size','offspr_frac',
                'indv_K', 'K_tot',
                'delta_indv', 'delta_tot', 'delta_size', 'delta_grp', 'K_grp']
-                                    
+
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
         ['N%imut' % x for x in range(model_par['indv_NType'])]
-    
+
     # init output matrix
     stateVarPlus_mav = [x+'_mav' for x in stateVarPlus]
     columnNames =  ['run_idx','replicate_idx'] + \
                 parList + stateVarPlus + stateVarPlus_mav
-                
-        
+
+
     return columnNames
 
-#run model store only final state 
+#run model store only final state
 def single_run_finalstate(model_par):
     """[Runs MLS model and stores final state]
-    
+
     Parameters
     ----------
     model_par : [Dictionary]
         [Stores model parameters]
-    
+
     Returns
     -------
     output_matrix : [Numpy recarray]
@@ -970,21 +975,21 @@ def single_run_finalstate(model_par):
         [Contains steady state distribution of frequency of cooperators]
     endDistGrSize : [Numpy ndarray]
         [Contains steady state distribution of group sizes]
-        
-    """    
+
+    """
     # run model
-    
+
     start = time.time()
-    output, distFCoop, distGrSize = run_model(model_par)    
+    output, distFCoop, distGrSize = run_model(model_par)
     end = time.time()
- 
+
     #input parameters to store
-    parList = ['indv_NType', 'indv_cost', 'indv_K', 
+    parList = ['indv_NType', 'indv_cost', 'indv_K',
                'indv_mutR','indv_migrR', 'indv_asymmetry', 'delta_indv',
                'gr_SFis', 'gr_CFis', 'K_grp', 'K_tot',
                'delta_grp', 'delta_tot', 'delta_size',
                'offspr_size','offspr_frac','run_idx']
-                                                        
+
     stateVarPlus = stateVar + \
         ['N%i' % x for x in range(model_par['indv_NType'])] + \
         ['N%imut' % x for x in range(model_par['indv_NType'])]
@@ -1006,8 +1011,8 @@ def single_run_finalstate(model_par):
 
     for par in parList:
         output_matrix[par] = model_par[par]
-        
-    output_matrix['run_time'] = end - start   
+
+    output_matrix['run_time'] = end - start
 
     endDistFCoop = distFCoop[-1,:]
     endDistGrSize = distGrSize[-1, :]

@@ -2,6 +2,7 @@
 Data/
 ENV/
 Figures/
+python_data_rev/
 __pycache__/
 .vscode/
 .spyproject/

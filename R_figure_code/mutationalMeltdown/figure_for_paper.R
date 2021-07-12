@@ -20,14 +20,14 @@ migr <- migr %>%
   filter(indv_migrR == "1")
 
 bind_rows(slope, migr) %>% 
-  mutate(facet_var = ifelse(!is.na(indv_migrR), "list(italic(S) == 0, italic(nu) == 1)",
-                            ifelse(gr_SFis == "0.0", "list(italic(S) == 0, italic(nu) == 0)",
-                                   "list(italic(S) == 2, italic(nu) == 0)"))) %>%
+  mutate(facet_var = ifelse(!is.na(indv_migrR), "list(italic(sigma) == 0, italic(nu) == 1)",
+                            ifelse(gr_SFis == "0.0", "list(italic(sigma) == 0, italic(nu) == 0)",
+                                   "list(italic(sigma) == 2, italic(nu) == 0)"))) %>%
   ggplot(aes(x = offspr_size, y = offspr_frac, fill = avg_max_mu)) +
   geom_tile() +
   facet_grid(facet_var ~ glue::glue('italic(m)*" = {indv_NType}"'), labeller = label_parsed) +
-  labs(x = expression("Frac. offsp. size ("*italic(s)*")"),
-       y = expression("Frac. offsp. number ("*italic(n)*")"),
+  labs(x = expression("Fractional offspring size ("*italic(s)*")"),
+       y = expression("Fractional offspring number ("*italic(n)*")"),
        fill = "Maximum\nmutation\nrate\n(log)") +
   cowplot::theme_cowplot() +
   theme(aspect.ratio = 1,

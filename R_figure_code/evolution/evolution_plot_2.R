@@ -53,7 +53,7 @@ for(i in c("ntot", "ngrp", "size")) {
                          labels = scales::label_number_si()) +
     cowplot::panel_border() +
     facet_wrap(
-      glue::glue('italic(m)*" = {indv_NType}"') ~ glue::glue('italic(S)*" = {gr_SFis}"'), 
+      glue::glue('italic(m)*" = {indv_NType}"') ~ glue::glue('italic(sigma)*" = {gr_SFis}"'), 
       labeller = label_parsed, nrow = 1) +
     geom_path(data = evol_df, aes(group = id, color = time), show.legend = FALSE) +
     scale_color_gradient(low = "red3", high = "mistyrose")
@@ -67,7 +67,7 @@ for(i in c("ntot", "ngrp", "size")) {
   if(j != 1) plots[[j]] <- plots[[j]] + theme(strip.background = element_blank(),
                                               strip.text.x = element_blank())
  
-  if(j == 1) plots[[j]] <- plots[[j]] + labs(fill = bquote(italic(N)["tot"]))
+  if(j == 1) plots[[j]] <- plots[[j]] + labs(fill = bquote(italic(N)["total"]))
   if(j == 2) plots[[j]] <- plots[[j]] + labs(fill = bquote(italic(G)))
   if(j == 3) plots[[j]] <- plots[[j]] + labs(fill = bquote(bar(italic(N)["i"])))
 }

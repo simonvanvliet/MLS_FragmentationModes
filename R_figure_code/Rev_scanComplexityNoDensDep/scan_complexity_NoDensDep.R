@@ -1,33 +1,12 @@
 library(tidyverse)
 
-df <- readRDS(here::here("R_figure_code", "scanComplexity", "data_scan_complexity_RDS"))
+df <- readRDS(here::here("R_figure_code", "Rev_scanComplexityNoDensDep", "data_scan_complexity_NoDensDep_RDS"))
 
-# df doesn't have column names, so I will create column names from a different data frame
-colnames <- colnames(readRDS(file = here::here("R_figure_code", "mutRvsPopSize", "data_mutation_vs_popsize_RDS")))
+one_type <- df %>% filter(indv_NType==1)
 
-one_type <- df %>% filter(is.nan(`32`))
-colnames(one_type) <- colnames
-one_type <- one_type[1:32]
+two_types <- df %>% filter(indv_NType==2)
 
-two_types <- df %>% filter(!is.nan(`35`) & is.nan(`36`))
-colnames(two_types) <- c(colnames[1:23], 
-                         c("N0", "N1", "N0mut", "N1mut"), 
-                         colnames[26:30], 
-                         c("N0_mav", "N1_mav", "N0mut_mav", "N1mut_mav"))
-two_types <- two_types[1:36]
-
-three_types <- df %>% filter(!is.nan(`39`) & is.nan(`40`))
-colnames(three_types) <- c(colnames[1:23],
-                           c("N0", "N1", "N2", "N0mut", "N1mut", "N2mut"), 
-                           colnames[26:30],
-                           c("N0_mav", "N1_mav", "N2_mav", "N0mut_mav", "N1mut_mav", "N2mut_mav"))
-three_types <- three_types[1:40]
-
-four_types <- df %>% filter(!is.nan(`40`))
-colnames(four_types) <- c(colnames[1:23],
-                          c("N0", "N1", "N2", "N3", "N0mut", "N1mut", "N2mut", "N3mut"), 
-                          colnames[26:30],
-                          c("N0_mav", "N1_mav", "N2_mav", "N3_mav", "N0mut_mav", "N1mut_mav", "N2mut_mav", "N3mut_mav"))
+three_types <- df %>% filter(indv_NType==3)
 
 
 plot_df <- rbind(
@@ -50,18 +29,11 @@ plot_df <- rbind(
     summarize(nr_cells = mean(NTot_mav, na.rm = TRUE),
               nr_groups = mean(NGrp_mav, na.rm = TRUE)) %>% 
     ungroup() %>% 
-    mutate(nr_spp = "3"),
-  
-  four_types %>% 
-    group_by(indv_asymmetry, offspr_frac, offspr_size) %>% 
-    summarize(nr_cells = mean(NTot_mav, na.rm = TRUE),
-              nr_groups = mean(NGrp_mav, na.rm = TRUE)) %>% 
-    ungroup() %>% 
-    mutate(nr_spp = "4")
+    mutate(nr_spp = "3")
 )
 
-plot_list <- vector(mode = "list", length = 4)
-for (i in 1:4){
+plot_list <- vector(mode = "list", length = 3)
+for (i in 1:3){
   species_number <- i; asymmetry <- 1
   
   p <- plot_df %>% 
@@ -110,25 +82,25 @@ plot_list[[1]] <- plot_list[[1]] +
 plot_list[[1]] <- plot_list[[1]] + coord_cartesian(ylim = c(0.0, 0.98))
 plot_list[[2]] <- plot_list[[2]] + coord_cartesian(ylim = c(0.0, 0.98))
 plot_list[[3]] <- plot_list[[3]] + coord_cartesian(ylim = c(0.0, 0.98))
-plot_list[[4]] <- plot_list[[4]] + coord_cartesian(ylim = c(0.0, 0.98))
 
 triangles <- egg::ggarrange(plots = plot_list, nrow = 1)
 triangles <- ggpubr::annotate_figure(triangles, bottom = ggpubr::text_grob(expression("Fractional offspring size ("*italic(s)*")"), 
                                                                            size = 14))
 
-saveRDS(triangles, file = here::here("R_figure_code", "scanComplexity", "plot_scan_complexity_RDS"))
+saveRDS(triangles, file = here::here("R_figure_code", "Rev_scanComplexityNoDensDep", "plot_scan_complexity_NoDensDep_RDS"))
 
-scan_comp_plot <- readRDS(here::here("R_figure_code", "scanComplexity", "plot_scan_complexity_RDS"))
+scan_comp_plot <- readRDS(here::here("R_figure_code", "Rev_scanComplexityNoDensDep", "plot_scan_complexity_NoDensDep_RDS"))
 
-plotA <- plotA +
+plotA <- plotA + 
   theme(axis.line.x = element_line(color = "salmon", size = 1.5),
         axis.title.x = element_text(color = "salmon")) +
   labs(x = "Reproduction strategy\n(upper transect)",
        y = expression("Productivity ("*italic(N)[total]*")"))
 
-plotB <- plotB + labs(y = "Normalized productivity          ")
+plotB <- plotB + 
+  labs(y = "Normalized productivity          ")
 
-plotC <- plotC +
+plotC <- plotC + 
   theme(axis.line.x = element_line(color = "salmon", size = 1.5),
         axis.title.x = element_text(color = "salmon")) +
   labs(x = "Reproduction strategy\n(upper transect)",
@@ -142,8 +114,9 @@ final_plot <- cowplot::plot_grid(
                      nrow = 1, labels = c("B", "C", "D"), align = "h", axis = "b"),
   nrow = 2)
 
-
-
-ggsave(here::here("R_figure_code", "scanComplexity", "complexity_plot.pdf"),
+ggsave(here::here("R_figure_code", "Rev_scanComplexityNoDensDep", "complexity_plot_NoDensDep.pdf"),
        plot = final_plot,
        width = 9.5, height = 6)
+
+
+

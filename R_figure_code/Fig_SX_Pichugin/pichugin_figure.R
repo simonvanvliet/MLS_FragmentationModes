@@ -4,6 +4,7 @@ library(cowplot)
 df <- readRDS(here::here("R_figure_code", "Fig_SX_Pichugin", "data_pichugin_RDS"))
 df <- tibble(df)
 
+
 df_summary <- df %>% 
   group_by(alpha_b, offspr_size, offspr_frac) %>% 
   summarize(r_groups = mean(r_groups),
@@ -22,7 +23,7 @@ i <- 1; for (alpha in (df$alpha_b %>% unique %>% rev)){
          x = expression(italic(s))) +
     theme(aspect.ratio = 1,
           axis.title.y = element_blank(),
-          axis.title.x = element_text(size = 12),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 9),
           legend.text = element_text(size = 8),
           legend.direction = "horizontal",
@@ -34,9 +35,14 @@ i <- 1; for (alpha in (df$alpha_b %>% unique %>% rev)){
   
   if(i == 1) {
     p <- p + theme(axis.text.y = element_text(size = 9),
-                   axis.title.y = element_text(size = 12)) +
-      labs(y = expression(italic(n))) 
-  } else { p <- p + theme(axis.text.y = element_blank()) }
+                   axis.title.y = element_text(size = 12, angle = 90)) +
+      labs(y = expression(atop("Fractional offspring", "number ("*italic(n)*")"))) 
+  } else if (i == 4) {
+    p <- p + theme(axis.text.x = element_text(size = 9),
+                   axis.title.x = element_text(size = 12),
+                   axis.text.y = element_blank()) +
+      labs(x = expression("Fractional offspring size ("*italic(s)*")")) 
+  }else { p <- p + theme(axis.text.y = element_blank()) }
   
   plot_list[[i]] <- p
   
@@ -58,7 +64,7 @@ i <- 1; for (alpha in (df$alpha_b %>% unique %>% rev)){
          x = expression(italic(s))) +
     theme(aspect.ratio = 1,
           axis.title.y = element_blank(),
-          axis.title.x = element_text(size = 12),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 9),
           legend.text = element_text(size = 8),
           legend.direction = "horizontal",
@@ -70,9 +76,14 @@ i <- 1; for (alpha in (df$alpha_b %>% unique %>% rev)){
   
   if(i == 1) {
     p <- p + theme(axis.text.y = element_text(size = 9),
-                   axis.title.y = element_text(size = 12)) +
-      labs(y = expression(italic(n))) 
-  } else { p <- p + theme(axis.text.y = element_blank()) }
+                   axis.title.y = element_text(size = 12, angle = 90)) +
+      labs(y = expression(atop("Fractional offspring", "number ("*italic(n)*")"))) 
+  } else if (i == 4) {
+    p <- p + theme(axis.text.x = element_text(size = 9),
+                   axis.title.x = element_text(size = 12),
+                   axis.text.y = element_blank()) +
+      labs(x = expression("Fractional offspring size ("*italic(s)*")")) 
+  }else { p <- p + theme(axis.text.y = element_blank()) }
   
   plot_list[[i]] <- p
   
@@ -85,6 +96,8 @@ plot_grid(plot_r_groups,
           plot_r_tot,
           nrow = 2,
           labels = c("A", "B"))
+
+
 
 
 ggsave(

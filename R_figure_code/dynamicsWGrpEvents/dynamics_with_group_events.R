@@ -45,7 +45,7 @@ plotG <- df %>%
         legend.title = element_blank()) +
   scale_y_log10(labels = scales::label_comma(accuracy = 1)) +
   scale_color_manual(labels = c("No group events", "Single-cell reproduction", "Complete fragmentation", "Binary fission"),
-    values = colors) +
+                     values = colors) +
   labs(x = "Time", y = expression("Number of groups ("*italic(G)*")"))
 
 
@@ -63,19 +63,19 @@ grand_means_N <- df %>%
                     0, "s = 0.5, n = 0.5", 10000))
 
 plotN <- df %>% 
-    mutate(unique_run = paste0(unique_run, fission_strategy)) %>% 
-    filter(NTot_mav >= 1) %>% 
-    ggplot(aes(x = time, y = NTot_mav, color = fission_strategy)) +
-    annotation_logticks(sides = "l") +
-    geom_line(alpha = 0.3, aes(group = unique_run), show.legend = FALSE) +
-    geom_line(data = filter(grand_means_N, N_mean > 1), aes(x = time_bins, y = N_mean),
-              size = 1) +
-    cowplot::theme_cowplot() +
-    theme(legend.position = "none") +
-    scale_y_log10(labels = scales::label_comma(accuracy = 1)) +
-    scale_color_manual(labels = c("No group events", "Single-cell reproduction", "Complete fragmentation", "Binary fission"),
-                       values = colors) +
-    labs(x = "Time", y = expression("Productivity ("*italic(N)[tot]*")"))
+  mutate(unique_run = paste0(unique_run, fission_strategy)) %>% 
+  filter(NTot_mav >= 1) %>% 
+  ggplot(aes(x = time, y = NTot_mav, color = fission_strategy)) +
+  annotation_logticks(sides = "l") +
+  geom_line(alpha = 0.3, aes(group = unique_run), show.legend = FALSE) +
+  geom_line(data = filter(grand_means_N, N_mean > 1), aes(x = time_bins, y = N_mean),
+            size = 1) +
+  cowplot::theme_cowplot() +
+  theme(legend.position = "none") +
+  scale_y_log10(labels = scales::label_comma(accuracy = 1)) +
+  scale_color_manual(labels = c("No group events", "Single-cell reproduction", "Complete fragmentation", "Binary fission"),
+                     values = colors) +
+  labs(x = "Time", y = expression("Productivity ("*italic(N)[total]*")"))
 
 
 plotMut <- df %>% 
@@ -97,26 +97,31 @@ plotMut <- df %>%
   scale_fill_manual(labels = c("Wild-type cells", "Mutant cells"),
                     values = c("darkgrey", "black"))
 
-  
+
 top_plots <- cowplot::plot_grid(plotMut, plotG, plotN, 
-                   nrow = 1, labels = c("A", "B", "C"),
-                   rel_widths = c(0.9, 1.5, 1.5))  
+                                nrow = 1, labels = c("A", "B", "C"),
+                                rel_widths = c(0.9, 1.5, 1.5))  
 
+mu_n_plot <- readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS")) +
+  ylab(expression("Productivity ("*italic(N)[total]*")"))
 
-
-mu_n_plot <- readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_popsize_RDS"))
-
-meltdown_plot <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "meltdown_plot_RDS"))
-
-mu_fcoop <-readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS"))
+meltdown_plot <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "meltdown_plot_RDS")) +
+  labs(x = expression("Fractional offspring size ("*italic(s)*")"),
+       y = expression("Fractional offspring number ("*italic(n)*")   "))
+       
+mu_fcoop <-readRDS(here::here("R_figure_code", "mutRvsPopSize", "plot_mutation_vs_frac_coop_RDS")) +
+  labs(y = "Normalized fraction of WT cells   ")
 
 bottom_plots <- cowplot::plot_grid(mu_n_plot, 
-                   meltdown_plot, 
-                   mu_fcoop,
-                   nrow = 1, labels = c("D", "E", "F"))
+                                   meltdown_plot, 
+                                   mu_fcoop,
+                                   nrow = 1, labels = c("D", "E", "F"))
 
 all_plots <- cowplot::plot_grid(top_plots, bottom_plots, nrow = 2)
 
+
+
 ggsave(here::here("R_figure_code", "dynamicsWGrpEvents", "dynamics_with_and_without_group_events.pdf"), 
        plot = all_plots, width = 11, height = 7)
- 
+
+

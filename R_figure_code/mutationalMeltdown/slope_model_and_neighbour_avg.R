@@ -27,7 +27,9 @@ avg <- list(); i <- 0; for (slope in c(0, 0.1, 2, 4)) {
                offspr_frac <= filtered_data[j,]$offspr_frac + delta_frac,
                offspr_frac >= filtered_data[j,]$offspr_frac - delta_frac)
       
-      averaged_data[j,]$avg_max_mu <- mean(neighbours$max_mu, na.rm = TRUE)
+      averaged_data[j,]$avg_max_mu <- ifelse(is.nan(averaged_data[j,]$max_mu), 
+                                             NA, 
+                                             mean(neighbours$max_mu, na.rm = TRUE))
     }
     
     avg[[i]] <- averaged_data
@@ -38,32 +40,3 @@ avg <- list(); i <- 0; for (slope in c(0, 0.1, 2, 4)) {
 avg <- bind_rows(avg)
 
 saveRDS(object = avg, file = here::here("R_figure_code", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
-avg <- readRDS(file = here::here("R_figure_code", "mutationalMeltdown", "slope_neighbour_avg_RDS"))
-
-avg$gr_SFis <- as.character(avg$gr_SFis)
-avg[avg$gr_SFis == "0",]$gr_SFis <- "0.0"
-avg$gr_SFis <- factor(avg$gr_SFis, levels = c("0.0", "0.1", "2","4"))
-
-
-avg %>% 
-  mutate(avg_max_mu = ifelse(avg_max_mu < -10, -10, avg_max_mu)) %>% 
-  ggplot(aes(x = offspr_size, y = offspr_frac, fill = avg_max_mu)) +
-  geom_tile() +
-  facet_grid(gr_SFis ~ indv_NType) +
-  labs(x = expression("Frac. offsp. size ("*italic(s)*")"),
-       y = expression("Frac. offsp. number ("*italic(n)*")"),
-       fill = "Maximum\nmutation\nrate\n(log)") +
-  cowplot::theme_cowplot() +
-  theme(aspect.ratio = 1,
-        strip.background = element_blank())+
-  guides(fill = element_blank()) +
-  scale_fill_viridis_c() +
-  cowplot::panel_border() +
-  facet_grid(glue::glue('italic(S)*" = {gr_SFis}"') ~ glue::glue('italic(m)*" = {indv_NType}"'), 
-             labeller = label_parsed) +
-  scale_x_continuous(breaks = c(0, 0.25, 0.5), labels = c("0", "0.25", "0.5")) +
-  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1"))
-
-#ggsave(filename = here::here("FigureData", "mutationalMeltdown", "meltdown_slope_neighbour_avg.pdf"),
-#       height = 7, width = 8)
-

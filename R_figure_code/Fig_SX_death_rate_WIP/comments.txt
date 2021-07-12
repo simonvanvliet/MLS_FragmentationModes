@@ -1,0 +1,5 @@
+- What is identical to S1, S2: productivity peak moves to the right along upper diagonal
+
+- Some stuff is different.
+	- In S1, S2 lowest productivity is always at bottom. Now it shifts from the bottom at m=1 to top left at m > 1
+	- In S1, S2, productivity first goes up, then down along the upper diagonal. In those, the idea is to show that large offspring may do well with low mu but it is non-viable with high mu. Now it is... maybe monotonic? It goes down for m = 1, up to m = 2 although maybe it has an intermediate maximum at high mu. The argument is much less clear here because productivity never approaches zero at high groups.

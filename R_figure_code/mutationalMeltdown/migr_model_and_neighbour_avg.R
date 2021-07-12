@@ -10,7 +10,6 @@ plot_df <- df %>%
   summarize(max_mu = mean(log(maxMu), na.rm = TRUE),
             pop_size = mean(NTot, na.rm = TRUE),
             nr_groups = mean(NGrp, na.rm = TRUE))
-#summarize(max_mu = max(log(maxMu), na.rm = TRUE))
 
 # for the first row (migration = 0) we get the data from the mutational meltdown on slope 
 df3 <- readRDS(here::here("R_figure_code", "mutationalMeltdown", "data_meltdown_RDS")) %>% 
@@ -47,6 +46,10 @@ avg <- list(); i <- 0; for (migr in c(0, 0.01, 0.1, 1)) {
                offspr_frac >= filtered_data[j,]$offspr_frac - delta_frac)
       
       averaged_data[j,]$avg_max_mu <- mean(neighbours$max_mu, na.rm = TRUE)
+      
+      averaged_data[j,]$avg_max_mu <- ifelse(is.nan(averaged_data[j,]$max_mu), 
+                                             NA, 
+                                             mean(neighbours$max_mu, na.rm = TRUE))
     }
     
     avg[[i]] <- averaged_data
@@ -57,30 +60,3 @@ avg <- list(); i <- 0; for (migr in c(0, 0.01, 0.1, 1)) {
 avg <- bind_rows(avg)
 
 saveRDS(object = avg, file = here::here("R_figure_code", "mutationalMeltdown", "migr_neighbour_avg_RDS"))
-
-
-avg$indv_migrR <- as.character(avg$indv_migrR)
-avg[avg$indv_migrR == "0",]$indv_migrR <- "0.0"
-avg$indv_migrR <- factor(avg$indv_migrR, levels = c("0.0", "0.01", "0.1","1", "5"))
-
-avg %>% 
-  mutate(avg_max_mu = ifelse(avg_max_mu < -10, -10, avg_max_mu)) %>% 
-  ggplot(aes(x = offspr_size, y = offspr_frac, fill = avg_max_mu)) +
-  geom_tile() +
-  facet_grid(indv_migrR ~ indv_NType) +
-  labs(x = expression("Frac. offsp. size ("*italic(s)*")"),
-       y = expression("Frac. offsp. number ("*italic(n)*")"),
-       fill = "Maximum\nmutation\nrate\n(log)") +
-  cowplot::theme_cowplot() +
-  theme(aspect.ratio = 1,
-        strip.background = element_blank())+
-  guides(fill = element_blank()) +
-  scale_fill_viridis_c() +
-  cowplot::panel_border() +
-  facet_grid(glue::glue('italic(nu)*" = {indv_migrR}"') ~ glue::glue('italic(m)*" = {indv_NType}"'), 
-             labeller = label_parsed) +
-  scale_x_continuous(breaks = c(0, 0.25, 0.5), labels = c("0", "0.25", "0.5")) +
-  scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1"))
-
-#ggsave(filename = here::here("FigureData", "mutationalMeltdown", "meltdown_migr_neighbour_avg.pdf"),
-#       height = 7, width = 8)

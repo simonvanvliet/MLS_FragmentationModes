@@ -63,8 +63,8 @@ max_df$v <- factor(max_df$v, levels = c("0.0", "0.01", "0.1","1"))
     filter( v != "5") %>% 
   ggplot(aes(x = offspr_size, y = offspr_frac)) +
   geom_tile(aes(fill = max_mu)) +
-  labs(x = expression("Frac. offsp. size ("*italic(s)*")"),
-       y = expression("Frac. offsp. number ("*italic(n)*")"),
+  labs(x = expression("Fractional offspring size ("*italic(s)*")"),
+       y = expression("Fractional offspring number ("*italic(n)*")"),
        fill = "Maximum\nmutation\nrate\n(log)") +
   cowplot::theme_cowplot() +
   theme(aspect.ratio = 1,

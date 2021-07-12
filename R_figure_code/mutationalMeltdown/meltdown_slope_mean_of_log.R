@@ -39,8 +39,8 @@ max_df$S <- factor(max_df$S, levels = c("0.0", "0.1", "2","4"))
   mutate(m = indv_NType, S = gr_SFis) %>% 
   ggplot(aes(x = offspr_size, y = offspr_frac)) +
   geom_tile(aes(fill = max_mu)) +
-  labs(x = expression("Frac. offsp. size ("*italic(s)*")"),
-       y = expression("Frac. offsp. number ("*italic(n)*")"),
+  labs(x = expression("Fractional offspring size ("*italic(s)*")"),
+       y = expression("Fractional offspring number ("*italic(n)*")"),
        fill = "Maximum\nmutation\nrate\n(log)") +
   cowplot::theme_cowplot() +
   theme(aspect.ratio = 1,
@@ -48,7 +48,7 @@ max_df$S <- factor(max_df$S, levels = c("0.0", "0.1", "2","4"))
   guides(fill = element_blank()) +
   scale_fill_viridis_c() +
   cowplot::panel_border() +
-  facet_grid(glue::glue('italic(S)*" = {S}"') ~ glue::glue('italic(m)*" = {m}"'), 
+  facet_grid(glue::glue('italic(sigma)*" = {S}"') ~ glue::glue('italic(m)*" = {m}"'), 
              labeller = label_parsed) +
    geom_polygon(data = max_df, color = "white", alpha = 0, size = 0.8) +
    scale_x_continuous(breaks = c(0, 0.25, 0.5), labels = c("0", "0.25", "0.5")) +
