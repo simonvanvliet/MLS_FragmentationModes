@@ -240,6 +240,18 @@ def sample_extinction(output, distFCoop, binFCoop,
 
     return sample_idx
 
+
+def sample_group_prop_end(groupMat):
+    # calc total number of individuals per group, use matrix product for speed
+    grSizeVec = groupMat.sum(0)
+    # calc total number of cooperators per group
+    Ncoop_group = groupMat[0::2, :].sum(0)
+    # calc fraction cooperators per group
+    fCoop_group = Ncoop_group / grSizeVec
+
+    return (grSizeVec, fCoop_group)
+
+
 """============================================================================
 Sub functions individual dynamics
 ============================================================================"""
@@ -799,7 +811,9 @@ def run_model(model_par):
     distFCoop = distFCoop[0:sampleIdx, :]
     distGrSize = distGrSize[0:sampleIdx, :]
 
-    return (output, distFCoop, distGrSize)
+    grSizeVec, fCoop_group =  sample_group_prop_end(groupMat)
+
+    return (output, distFCoop, distGrSize, grSizeVec, fCoop_group)
 
 
 """============================================================================
@@ -823,7 +837,7 @@ def run_model_dynamics_fig(model_par):
 
     """
     # run model
-    output, distFCoop, distGrSize = run_model(model_par)
+    output, distFCoop, distGrSize, _, _ = run_model(model_par)
     numt = output.size
 
     #input parameters to store
@@ -865,6 +879,7 @@ def run_model_dynamics_fig(model_par):
 
     return (output_matrix)
 
+
 #run model store only final state
 def run_model_steadyState_fig(model_par):
     """[Runs MLS model and stores steady state]
@@ -881,7 +896,7 @@ def run_model_steadyState_fig(model_par):
 
     """
     # run model
-    output, distFCoop, distGrSize = run_model(model_par)
+    output, distFCoop, distGrSize, _, _ = run_model(model_par)
     numt = output.size
 
     #input parameters to store
@@ -980,7 +995,7 @@ def single_run_finalstate(model_par):
     # run model
 
     start = time.time()
-    output, distFCoop, distGrSize = run_model(model_par)
+    output, distFCoop, distGrSize, _, _ = run_model(model_par)
     end = time.time()
 
     #input parameters to store
@@ -1068,4 +1083,4 @@ if __name__ == "__main__":
         'run_idx':          1,
         'perimeter_loc':    0
     }
-    output, distFCoop, distGrSize = run_model(model_par)
+    output, distFCoop, distGrSize, _, _ = run_model(model_par)

@@ -11,3 +11,4 @@ temp.py
 *.npz
 *.pdf
 .vscode
+.Rproj.user
