@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 2021-07-13
+Updated on 2021-07-09
 
-Code for SI FIGURE
-- for archetype fragmentation modes we run simulations and extract group size and cooperator frequency
+- Triangle showing, for each strategy, the number of cells and number of groups at equilibrium.
+Varies complexity of community by changing NType or Asymmetry
 
+- Here we will change NType and mu when there is no density dependence
+- Fission slope increased to 1E9 when Ni > K_ind
+
+Optimized for SLURM array job
 
 @author: Simon van Vliet & Gil Henriques
 Department of Zoology
@@ -32,19 +36,26 @@ import os
 SET MODEL SETTINGS
 ============================================================================"""
 
+#SET fileName is appended to file name
+mainName = 'ScanComplex_NoDensDep-NoMut'
 
-#SET OUTPUT FILENAME
-mainName = 'groupPropSteadyState'
+#setup 2D parameter grid
+offspr_size_Vec = np.arange(0.01, 0.5, 0.034)
+offspr_frac_Vec = np.arange(0.01, 1, 0.07)
 
-#SET fragementation modes to scan
-init_Aray = np.array([[0.05,0.95],[0.05,0.05],[0.5,0.5]])
-numInit = init_Aray.shape[0]
+#set model mode settings (slope and migration rate)
+mode_set = np.array([[1],
+                     [1]])
+modeNames = ['indv_NType', 'indv_asymmetry']
+mode_vec = np.arange(mode_set.shape[1])
 
-indv_mutR_vec = np.array([0.001, 0.01, 0.025, 0.05, 0.1])
-indv_NType_vec = np.array([1, 2])
+#SET fission rates to scan
+gr_CFis_vec = np.array([0.05])
+
+mu_vec = np.array([0])
 
 #SET nr of replicates
-nReplicate = 10
+nReplicate = 5
 
 #SET rest of model parameters
 model_par_def = {
@@ -72,21 +83,21 @@ model_par_def = {
         "indv_migrR":       0,      # mutation rate to cheaters
         # group size control
         "indv_K":           100,     # total group size at EQ if f_coop=1
-        "delta_indv":       1,      # zero if death rate is simply 1/k, one if death rate decreases with group size
+        "delta_indv":       0,      # zero if death rate is simply 1/k, one if death rate decreases with group size
         # setting for group rates
         # fission rate
         'gr_CFis':          0.05,
-        'gr_SFis':          0,     # measured in units of 1 / indv_K
+        'gr_SFis':          np.inf,     # measured in units of 1 / indv_K
         'grp_tau':          1,     # constant multiplies group rates
         # extinction rate
         'delta_grp':        0,      # exponent of density dependence on group #
         'K_grp':            0,      # carrying capacity of groups
         'delta_tot':        1,      # exponent of density dependence on total #individual
-        'K_tot':            1E5,      # carrying capacity of total individuals
+        'K_tot':            1E4,      # carrying capacity of total individuals
         'delta_size':       0,      # exponent of size dependence
         # settings for fissioning
-        'offspr_size':      0.5,  # offspr_size <= 0.5 and
-        'offspr_frac':      0.5,    # offspr_size < offspr_frac < 1-offspr_size'
+        'offspr_size':      0.01,  # offspr_size <= 0.5 and
+        'offspr_frac':      0.01,    # offspr_size < offspr_frac < 1-offspr_size'
         # extra settings
         'run_idx':          1,
         'replicate_idx':    1,
@@ -97,7 +108,6 @@ model_par_def = {
 """============================================================================
 CODE TO MAKE FIGURE
 ============================================================================"""
-
 
 parNameAbbrev = {
                 'delta_indv'    : 'dInd',
@@ -120,60 +130,65 @@ parNameAbbrev = {
                 'offspr_sizeInit':'siIn',
                 'offspr_fracInit':'frIn',
                 'indv_tau'      : 'tInd',
-                'replicate_idx' : 'repN',
-                'offspr_size'   : 's',
-                'offspr_frac'   : 'n'}
+                'replicate_idx' : 'repN'}
 
-parListName = ['offspr_size',
-               'offspr_frac',
-               'replicate_idx',
+parListName = ['indv_NType',
+               'indv_asymmetry',
+               'gr_CFis',
                'indv_mutR',
-               'indv_NType']
+               'replicate_idx']
 
 #create list of main parameters to scan, each will run as separate SLURM job
-modelParListGlobal = [x for x in itertools.product(range(numInit), range(nReplicate), indv_mutR_vec, indv_NType_vec)]
+modelParListGlobal = [x for x in itertools.product(mode_vec, gr_CFis_vec, mu_vec, range(nReplicate))]
 
 #report number of array jobs needed
 def report_number_runs():
     return len(modelParListGlobal)
 
+# create parameter list for current job
+def create_model_par_list_local(runIdx):
+    #create model paremeter list for current parameter scan
+    modelParListLocal = []
+    #get current global parameters
+    curGlobalPar = modelParListGlobal[runIdx]
+    for offspr_size in offspr_size_Vec:
+        for offspr_frac in offspr_frac_Vec:
+            inBounds = offspr_frac >= offspr_size and \
+                    offspr_frac <= (1 - offspr_size)
+
+            if inBounds:
+                settings = {'indv_NType'     : mode_set[0, curGlobalPar[0]],
+                            'indv_asymmetry' : mode_set[1, curGlobalPar[0]],
+                            'gr_CFis'        : curGlobalPar[1],
+                            'indv_mutR'      : curGlobalPar[2],
+                            'replicate_idx'  : curGlobalPar[3],
+                            'offspr_size'    : offspr_size,
+                            'offspr_frac'    : offspr_frac,
+                            }
+                curPar = util.set_model_par(model_par_def, settings)
+                modelParListLocal.append(curPar)
+
+    return modelParListLocal
+
 # run model code
 def run_model(runIdx, folder):
     #get model parameters to scan
+    modelParListLocal = create_model_par_list_local(runIdx)
 
-    curGlobalPar = modelParListGlobal[runIdx]
-    settings = {'offspr_size'    : init_Aray[curGlobalPar[0]][0],
-                'offspr_frac'    : init_Aray[curGlobalPar[0]][1],
-                'replicate_idx'  : curGlobalPar[1],
-                'indv_mutR'      : curGlobalPar[2],
-                'indv_NType'     : curGlobalPar[3]
-                }
-    par = util.set_model_par(model_par_def, settings)
+    # run model, use serial processing
+    dfList = []
+    for par in modelParListLocal:
+        output_matrix = mls.run_model_steadyState_fig(par)
+        #convert to pandas data frame, add to list
+        dfList.append(pd.DataFrame.from_records(output_matrix))
 
-    _, _, _, grSizeVec, fCoop_group = mls.run_model(par)
-
-    frag_mode_idx_vec   = np.ones_like(grSizeVec) * curGlobalPar[0]
-    offspr_size_vec     = np.ones_like(grSizeVec) * par['offspr_size']
-    offspr_frac_vec     = np.ones_like(grSizeVec) * par['offspr_frac']
-    replicate_idx_vec   = np.ones_like(grSizeVec) * par['replicate_idx']
-    indv_mutR_vec       = np.ones_like(grSizeVec) * par['indv_mutR']
-    indv_NType_vec      = np.ones_like(grSizeVec) * par['indv_NType']
-
-
-    data = {'frag_mode_idx'     : frag_mode_idx_vec,
-            'offspr_size'       : offspr_size_vec,
-            'offspr_frac'       : offspr_frac_vec,
-            'replicate_idx'     : replicate_idx_vec,
-            'indv_mutR'         : indv_mutR_vec,
-            'indv_NType'        : indv_NType_vec,
-            'group_size'        : grSizeVec,
-            'coop_freq'         : fCoop_group}
-
-    df = pd.DataFrame(data=data)
-
-    parName = ['_%s%.0g' %(parNameAbbrev[x], par[x]) for x in parListName]
+    #create output name
+    parName = ['_%s%.0g' %(parNameAbbrev[x], modelParListLocal[0][x]) for x in parListName]
     parName = ''.join(parName)
     fileNamePkl = folder + mainName + parName + '.pkl'
+
+    #merge results in single data frame
+    df = pd.concat(dfList, axis=0, ignore_index=True, sort=True)
     #store results on disk
     df.to_pickle(fileNamePkl)
 
@@ -186,10 +201,10 @@ if __name__ == "__main__":
     runFolder = folder + '/home/' + mainName + '/'
 
     runIdx = int(runIdx)
-    runFolder = '/scicore/home/jenal/vanvli0000/home/MLSGroupProp/'
-    # if not os.path.exists(runFolder):
-    #     try:
-    #         os.mkdir(runFolder)
-    #     except:
-    #         print('skip folder creation')
+    runFolder = '/scicore/home/jenal/vanvli0000/home/NDD_complexity_noMut/'
+    if not os.path.exists(runFolder):
+        try:
+            os.mkdir(runFolder)
+        except:
+            print('skip folder creation')
     run_model(runIdx, runFolder)
